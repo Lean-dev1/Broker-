@@ -41,5 +41,5 @@ public abstract class Order {
      * Double Dispatch entry point.
      * The order delegates the execution to the correct overloaded method in the engine.
      */
-    public abstract void processBy(MatchingEngine engine);
+    public abstract void processBy(MatchingEngineTest engine);
 }

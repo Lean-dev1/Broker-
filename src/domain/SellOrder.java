@@ -14,7 +14,7 @@ public class SellOrder extends Order {
     }
 
     @Override
-    public void processBy(MatchingEngine engine) {
+    public void processBy(MatchingEngineTest engine) {
         engine.match(this);
     }
 }
