@@ -1,4 +1,4 @@
-package domain;
+package main.domain;
 
 /**
  * Represents a price level in the order book (e.g., all buy orders at $1000).

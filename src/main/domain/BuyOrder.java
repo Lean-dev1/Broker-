@@ -1,4 +1,4 @@
-package domain;
+package main.domain;
 
 public class BuyOrder extends Order {
     public BuyOrder(long id, String participantId, long price, long quantity) {

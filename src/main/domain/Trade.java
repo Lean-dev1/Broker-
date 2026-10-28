@@ -1,4 +1,4 @@
-package domain;
+package main.domain;
 
 /**
  * Immutable record representing a financial execution between two orders.

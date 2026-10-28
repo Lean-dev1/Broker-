@@ -1,4 +1,4 @@
-package domain;
+package main.domain;
 
 public abstract class Order {
     private final long id;

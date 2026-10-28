@@ -1,9 +1,10 @@
-package engine;
+package main.engine;
 
 
-import domain.*;
 import java.util.ArrayList;
 import java.util.List;
+
+import main.domain.*;
 
 public class MatchingEngine {
     private final OrderBook book;

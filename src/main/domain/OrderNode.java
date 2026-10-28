@@ -1,4 +1,4 @@
-package domain;
+package main.domain;
 /**
  * Private node of our Doubly Linked List.
    Acts as a wrapperr for the Order 
