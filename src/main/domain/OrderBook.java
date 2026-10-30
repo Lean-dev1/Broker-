@@ -43,12 +43,15 @@ public class OrderBook {
         return level.addOrder(order);
     }
 
-    public void cancelOrder(long orderId) {
+   /**
+     * Cancels an order in O(1) time and returns it so held funds can be released.
+     */
+    public Order cancelOrder(long orderId) {
         OrderNode node = activeOrders.remove(orderId);
-        if (node != null) {
-            // Aquí el PriceLevel debería encapsular también su propia limpieza,
-            // pero mantenemos la lógica base por ahora.
-            node.removeFromLevel(); 
+        if (node == null) {
+            return null;
         }
+        node.removeFromLevel();
+        return node.getOrder();
     }
 }
