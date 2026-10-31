@@ -27,5 +27,16 @@ public class PriceLevel {
         }
         totalVolume += order.getRemainingQuantity();
     }
-    
+    /**
+     * Returns the available volume at this price level, capped at maxNeeded to stop early.
+     */
+    public long getAvailableVolumeUpTo(long maxNeeded) {
+        long accumulated = 0L;
+        OrderNode current = head;
+        while (current != null && accumulated < maxNeeded) {
+            accumulated += current.getOrder().getRemainingQuantity();
+            current = current.getNext();
+        }
+        return accumulated;
+    }
 }

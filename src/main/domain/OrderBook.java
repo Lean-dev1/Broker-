@@ -54,4 +54,38 @@ public class OrderBook {
         node.removeFromLevel();
         return node.getOrder();
     }
+
+    /**
+     * Non-destructive check for Buy FOK orders: verifies if asks up to limitPrice can cover requiredQty.
+     */
+    public boolean canFillBuyCompletely(long limitPrice, long requiredQty) {
+        long accumulated = 0L;
+        for (PriceLevel level : asks.values()) {
+            if (level.getPrice() > limitPrice) {
+                break; // TreeMap is sorted ascending; no further levels can match
+            }
+            accumulated += level.getAvailableVolumeUpTo(requiredQty - accumulated);
+            if (accumulated >= requiredQty) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Non-destructive check for Sell FOK orders: verifies if bids down to limitPrice can cover requiredQty.
+     */
+    public boolean canFillSellCompletely(long limitPrice, long requiredQty) {
+        long accumulated = 0L;
+        for (PriceLevel level : bids.values()) {
+            if (level.getPrice() < limitPrice) {
+                break; // Bids TreeMap is sorted descending; no further levels can match
+            }
+            accumulated += level.getAvailableVolumeUpTo(requiredQty - accumulated);
+            if (accumulated >= requiredQty) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
