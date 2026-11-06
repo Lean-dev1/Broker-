@@ -1,40 +1,70 @@
-# Broker- — Financial Matching Engine
+# Broker- — In-memory financial matching simulator
 
-Experimental **in-memory financial market simulation** written in Java 17.
-This repository is not a production broker, exchange, or financial custody system.
+Experimental Java 17 project for studying price-time matching, order lifecycle,
+simulated settlement, invariants and performance. **Not a production broker.**
 
-## Current modules
-- Limit-order price/time matching with deterministic injected timestamps
-- In-memory bid/ask order book and partial fills
-- Account balance holds and simulated trade settlement
-- Unit/fuzz tests and JMH benchmarks
-- GTC-style resting behavior in the primary engine path
+## Current functionality
 
-**Not production ready:** accounting and matching are not yet a single atomic transaction;
-there is no recovery log, persistent journal, authentication, or audited risk engine.
-IOC/FOK strategy classes are experimental and **not connected** to the main execution path.
+- Price-time-priority limit order matching with FIFO price levels.
+- GTC, IOC and FOK execution through `TradingCoordinator`.
+- Deterministic trade timestamps injected by the caller.
+- Multi-asset in-memory accounts with held collateral.
+- Explicit order lifecycle and quantity conservation.
+- Single-writer in-memory transaction rollback on synchronous failures.
+- JUnit regressions, seeded randomized tests and JMH microbenchmarks.
 
-## Build and test
-Requires JDK 17+ and Maven 3.9+.
+**Important:** Rollback uses a full in-memory snapshot per command. This
+sacrifices throughput and memory for correctness in the current simulator.
+There is no crash recovery, persistent journal, security, audit trail, network
+access layer, or concurrency isolation from external mutations.
+
+## Requirements
+
+- JDK 17+
+- Maven 3.9+
 
 ```bash
-mvn clean test
-mvn clean package
+mvn clean verify
 ```
 
-The project temporarily retains the original `src/main` and `tests` paths,
-explicitly configured in `pom.xml`. A migration to the Maven standard
-`src/main/java` and `src/test/java` is planned.
+## Example
 
-## Documentation
+```java
+TradingPair pair = new TradingPair("ALUA", "ARS");
+Ledger ledger = new Ledger();
+OrderBook book = new OrderBook("ALUA-ARS");
+TradingCoordinator coordinator =
+    new TradingCoordinator(pair, ledger, book, new MatchingEngine(book));
+
+Account seller = ledger.createAccount("seller");
+Account buyer = ledger.createAccount("buyer");
+seller.deposit("ALUA", 10);
+buyer.deposit("ARS", 1000);
+coordinator.submitOrder(new SellOrder(1, "seller", 100, 10), 1L);
+List<Trade> trades =
+    coordinator.submitOrder(new BuyOrder(2, "buyer", 100, 10), 2L, TimeInForce.FOK);
+```
+
+`Order`, `TradingPair`, `TimeInForce`, `Trade`, `Account`,
+`Ledger`, `OrderBook`, `MatchingEngine` and `TradingCoordinator`
+must be imported from their respective `main.domain`, `main.ledger` and
+`main.engine` packages.
+
+The project currently uses its original `src/main` and `tests`
+directories via explicit Maven configuration.
+
+## Documents
+
 - [Vision](Docs/Vision.md)
 - [Scope](Docs/Scope.md)
-- [Requirements](Docs/Requirements.md)
-- [Domain invariants](Docs/domain-model.md)
-- [Risks](Docs/risk-register.md)
+- [Requirements and acceptance criteria](Docs/Requirements.md)
+- [Domain model and invariants](Docs/domain-model.md)
+- [Architecture](Docs/architecture.md)
+- [Quality attributes](Docs/quality-attributes.md)
+- [Risk register](Docs/risk-register.md)
 
-## Next engineering gates
-1. Run and pass all tests in CI.
-2. Specify order lifecycle and duplicate ID semantics.
-3. Design a transactional, auditable order + ledger commit boundary.
-4. Establish reproducible performance measurements before making speed claims.
+## Open engineering problems
+
+Durable and idempotent transaction processing, double-entry accounting,
+account and order isolation, failure recovery, instrument validation, authentication
+and external APIs. No benchmark claim should ignore snapshot costs.

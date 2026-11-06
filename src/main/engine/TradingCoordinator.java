@@ -2,117 +2,159 @@ package main.engine;
 
 import main.domain.Order;
 import main.domain.OrderBook;
+import main.domain.OrderStatus;
+import main.domain.SelfTradeException;
+import main.domain.TimeInForce;
 import main.domain.Trade;
 import main.domain.TradingPair;
 import main.ledger.Account;
 import main.ledger.Ledger;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
- * Orchestrates Pre-Trade Risk Validation, Order Matching, and Post-Trade Atomic Settlement.
- * Maintains strict single-threaded determinism on the hot path.
+ * Single-writer in-memory transaction coordinator for simulated funds.
+ * Snapshots are used to restore order book, order lifecycle and balances on an exception.
+ * NOT durable, crash-safe, or safe when the underlying book/ledger is mutated externally.
  */
-public class TradingCoordinator {
+public final class TradingCoordinator {
     private final TradingPair tradingPair;
     private final Ledger ledger;
     private final OrderBook orderBook;
     private final MatchingEngine matchingEngine;
-
-    // Tracks open orders by ID in O(1) to resolve resting orders during settlement
-    private final Map<Long, Order> openOrdersIndex;
+    private final Map<Long, Order> openOrdersIndex = new HashMap<>();
     private final Set<Long> submittedIds = new HashSet<>();
 
-    public TradingCoordinator(TradingPair tradingPair, Ledger ledger, OrderBook orderBook, MatchingEngine matchingEngine) {
-        this.tradingPair = tradingPair;
-        this.ledger = ledger;
-        this.orderBook = orderBook;
-        this.matchingEngine = matchingEngine;
-        this.openOrdersIndex = new HashMap<>();
+    public TradingCoordinator(TradingPair tradingPair, Ledger ledger, OrderBook orderBook,
+                              MatchingEngine matchingEngine) {
+        this.tradingPair = Objects.requireNonNull(tradingPair);
+        this.ledger = Objects.requireNonNull(ledger);
+        this.orderBook = Objects.requireNonNull(orderBook);
+        this.matchingEngine = Objects.requireNonNull(matchingEngine);
+    }
+
+    /** Backward-compatible default: GTC. */
+    public synchronized List<Trade> submitOrder(Order order, long timestamp) {
+        return submitOrder(order, timestamp, TimeInForce.GTC);
     }
 
     /**
-     * Submits an order through the full financial pipeline:
-     * 1. Pre-Trade Risk: Locks required funds in the participant's account.
-     * 2. Execution: Matches the order in the engine.
-     * 3. Post-Trade Settlement: Settles both sides of every generated trade.
+     * Accepts one order with GTC, IOC or FOK execution policy.
+     * Reverts all in-memory state on a runtime failure (including failures mid-settlement).
      */
-    public synchronized List<Trade> submitOrder(Order aggressiveOrder, long timestamp) {
-        if (submittedIds.contains(aggressiveOrder.getId())) {
-            throw new IllegalArgumentException("Order ID already submitted");
+    public synchronized List<Trade> submitOrder(Order order, long timestamp, TimeInForce policy) {
+        Objects.requireNonNull(order, "order");
+        Objects.requireNonNull(policy, "time in force");
+        if (order.getStatus() != OrderStatus.CREATED) {
+            throw new IllegalArgumentException("Only fresh orders can be submitted");
         }
-        if (orderBook.containsOrder(aggressiveOrder.getId())) {
-            throw new IllegalArgumentException("Order ID already active");
+        if (submittedIds.contains(order.getId()) || orderBook.containsOrder(order.getId())) {
+            throw new IllegalArgumentException("Order ID already used: " + order.getId());
         }
-        if (orderBook.wouldSelfMatch(aggressiveOrder)) {
-            throw new main.domain.SelfTradeException("Self-trading is forbidden");
+        if (orderBook.wouldSelfMatch(order)) {
+            throw new SelfTradeException("Self-trading is forbidden");
         }
-        Account aggressiveAccount = ledger.getAccount(aggressiveOrder.getParticipantId());
+        Account aggressiveAccount = ledger.getAccount(order.getParticipantId());
+        Checkpoint checkpoint = checkpoint(order);
+        try {
+            // Hold first. If no funds, the transaction rolls back without consuming the ID.
+            order.reserveFunds(aggressiveAccount, tradingPair);
+            submittedIds.add(order.getId());
 
-        // 1. Pre-Trade Risk Validation & Hold (Polymorphic Tell, Don't Ask)
-        // If funds are insufficient, InsufficientFundsException is thrown here
-        // and the order NEVER touches the MatchingEngine or OrderBook.
-        aggressiveOrder.reserveFunds(aggressiveAccount, tradingPair);
-        submittedIds.add(aggressiveOrder.getId());
+            // FOK can cancel without mutating the book or executing any trades.
+            if (policy == TimeInForce.FOK && !order.canBeCompletelyFilledBy(orderBook)) {
+                order.releaseRemainingFunds(aggressiveAccount, tradingPair);
+                order.cancelRemaining();
+                return List.of();
+            }
 
-        // 2. Matching Execution
-        List<Trade> trades = matchingEngine.process(aggressiveOrder, timestamp);
+            // The raw engine has GTC resting semantics; IOC is explicitly unlinked afterward.
+            List<Trade> trades = matchingEngine.process(order, timestamp);
+            for (Trade trade : trades) settleTrade(order, aggressiveAccount, trade);
 
-        // 3. Post-Trade Atomic Settlement
-        for (int i = 0; i < trades.size(); i++) {
-            Trade trade = trades.get(i);
-            settleTrade(aggressiveOrder, aggressiveAccount, trade);
+            if (!order.isFilled()) {
+                if (policy == TimeInForce.GTC) {
+                    if (!orderBook.containsOrder(order.getId())) {
+                        throw new IllegalStateException("Resting order missing from book");
+                    }
+                    openOrdersIndex.put(order.getId(), order);
+                } else {
+                    Order unlinked = orderBook.cancelOrder(order.getId());
+                    if (unlinked != order) {
+                        throw new IllegalStateException("IOC/FOK remaining order not found");
+                    }
+                    order.releaseRemainingFunds(aggressiveAccount, tradingPair);
+                    order.cancelRemaining();
+                }
+            }
+            if (policy == TimeInForce.FOK && !order.isFilled()) {
+                throw new IllegalStateException("FOK violated all-or-nothing execution");
+            }
+            return List.copyOf(trades);
+        } catch (RuntimeException | Error failure) {
+            rollback(checkpoint, failure);
+            throw failure;
         }
-
-        // If the aggressive order was not fully filled, it is now resting in the book;
-        // index it so future trades can settle against it.
-        if (!aggressiveOrder.isFilled()) {
-            openOrdersIndex.put(aggressiveOrder.getId(), aggressiveOrder);
-        }
-
-        return trades;
     }
 
-    /**
-     * Cancels an open order in the book and immediately unlocks its remaining held funds.
-     */
     public synchronized boolean cancelOrder(long orderId) {
-        Order canceledOrder = orderBook.cancelOrder(orderId);
-        if (canceledOrder == null) {
-            return false;
+        if (!openOrdersIndex.containsKey(orderId)) return false;
+        Order order = openOrdersIndex.get(orderId);
+        Account account = ledger.getAccount(order.getParticipantId());
+        Checkpoint checkpoint = checkpoint(order);
+        try {
+            Order unlinked = orderBook.cancelOrder(orderId);
+            if (unlinked != order) throw new IllegalStateException("Book and coordinator index differ");
+            order.releaseRemainingFunds(account, tradingPair);
+            order.cancelRemaining();
+            openOrdersIndex.remove(orderId);
+            return true;
+        } catch (RuntimeException | Error failure) {
+            rollback(checkpoint, failure);
+            throw failure;
         }
-
-        openOrdersIndex.remove(orderId);
-        Account account = ledger.getAccount(canceledOrder.getParticipantId());
-        
-        // Polymorphic release of remaining collateral
-        canceledOrder.releaseRemainingFunds(account, tradingPair);
-        return true;
     }
 
     private void settleTrade(Order aggressiveOrder, Account aggressiveAccount, Trade trade) {
         Order restingOrder = openOrdersIndex.get(trade.restingOrderId());
         if (restingOrder == null) {
-            throw new IllegalStateException("Critical invariant breach: Resting order not found for settlement: " + trade.restingOrderId());
+            throw new IllegalStateException("Resting order missing for settlement: " + trade.restingOrderId());
         }
-
         Account restingAccount = ledger.getAccount(restingOrder.getParticipantId());
+        aggressiveOrder.settleExecution(aggressiveAccount, tradingPair,
+                                        trade.matchPrice(), trade.executedQuantity());
+        restingOrder.settleExecution(restingAccount, tradingPair,
+                                     trade.matchPrice(), trade.executedQuantity());
+        if (restingOrder.isFilled()) openOrdersIndex.remove(restingOrder.getId());
+    }
 
-        long executionPrice = trade.matchPrice();
-        long executedQty = trade.executedQuantity();
+    private record Checkpoint(OrderBook.Snapshot book, Ledger.Snapshot ledger,
+                              Map<Long, Order> openOrders, Set<Long> submittedIds) {}
 
-        // Polymorphic settlement: each order knows what asset it locked, what it receives,
-        // and whether it deserves a price improvement refund.
-        aggressiveOrder.settleExecution(aggressiveAccount, tradingPair, executionPrice, executedQty);
-        restingOrder.settleExecution(restingAccount, tradingPair, executionPrice, executedQty);
+    private Checkpoint checkpoint(Order incoming) {
+        return new Checkpoint(orderBook.snapshot(incoming), ledger.snapshot(),
+                new HashMap<>(openOrdersIndex), new HashSet<>(submittedIds));
+    }
 
-        // Clean up the index if the resting order was completely exhausted
-        if (restingOrder.isFilled()) {
-            openOrdersIndex.remove(restingOrder.getId());
+    private void rollback(Checkpoint checkpoint, Throwable failure) {
+        try {
+            orderBook.restore(checkpoint.book());
+        } catch (RuntimeException | Error e) {
+            failure.addSuppressed(e);
         }
+        try {
+            ledger.restore(checkpoint.ledger());
+        } catch (RuntimeException | Error e) {
+            failure.addSuppressed(e);
+        }
+        openOrdersIndex.clear();
+        openOrdersIndex.putAll(checkpoint.openOrders());
+        submittedIds.clear();
+        submittedIds.addAll(checkpoint.submittedIds());
     }
 }
