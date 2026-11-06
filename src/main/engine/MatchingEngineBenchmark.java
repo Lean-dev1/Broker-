@@ -1,10 +1,10 @@
 package main.engine;
 
-import com.jerez.fintech.domain.*;
-import com.jerez.fintech.engine.MatchingEngine;
-import com.jerez.fintech.engine.TradingCoordinator;
-import com.jerez.fintech.ledger.Account;
-import com.jerez.fintech.ledger.Ledger;
+import main.domain.*;
+import main.engine.MatchingEngine;
+import main.engine.TradingCoordinator;
+import main.ledger.Account;
+import main.ledger.Ledger;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 

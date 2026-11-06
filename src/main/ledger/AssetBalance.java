@@ -66,8 +66,9 @@ public class AssetBalance {
                 "Cannot hold " + amount + " of " + assetSymbol + ": only " + available + " available"
             );
         }
+        long nextHeld = Math.addExact(this.held, amount);
         this.available -= amount;
-        this.held = Math.addExact(this.held, amount);
+        this.held = nextHeld;
     }
 
     /**
@@ -81,13 +82,24 @@ public class AssetBalance {
                 "Cannot release " + amount + " of " + assetSymbol + ": only " + held + " held"
             );
         }
+        long nextAvailable = Math.addExact(this.available, amount);
         this.held -= amount;
-        this.available = Math.addExact(this.available, amount);
+        this.available = nextAvailable;
     }
 
     /**
      * Permanently consumes held funds when a trade is executed (settlement).
      */
+    public void verifyCanCredit(long amount) {
+        validatePositiveAmount(amount);
+        Math.addExact(available, amount);
+    }
+
+    public void verifyCanSettleHeld(long amount) {
+        validatePositiveAmount(amount);
+        if (held < amount) throw new IllegalStateException("Insufficient held balance for " + assetSymbol);
+    }
+
     public void settleHeld(long amount) {
         validatePositiveAmount(amount);
         if (this.held < amount) {

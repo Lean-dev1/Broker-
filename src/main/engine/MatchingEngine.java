@@ -19,6 +19,12 @@ public class MatchingEngine {
      * Main entry point for the engine.
      */
     public List<Trade> process(Order aggressiveOrder, long logicalTimestamp) {
+        if (book.containsOrder(aggressiveOrder.getId())) {
+            throw new IllegalArgumentException("Duplicate active order ID");
+        }
+        if (book.wouldSelfMatch(aggressiveOrder)) {
+            throw new main.domain.SelfTradeException("Self-trading is forbidden");
+        }
         List<Trade> executions = new ArrayList<>();
         // Invert control: tell the order to match itself against this engine
         aggressiveOrder.processBy(this, executions, logicalTimestamp);

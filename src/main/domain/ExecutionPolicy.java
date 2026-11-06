@@ -1,6 +1,6 @@
 package main.domain;
 
-import com.jerez.fintech.ledger.Account;
+import main.ledger.Account;
 import java.util.Map;
 
 /**

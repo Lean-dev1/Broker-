@@ -1,41 +1,46 @@
 package main.domain;
 
-/**
- * Represents a price level in the order book (e.g., all buy orders at $1000).
- * Enforces encapsulation by managing the doubly linked list internally.
- */
-public class PriceLevel {
+/** FIFO queue of resting orders at one price. */
+public final class PriceLevel {
     private final long price;
-    private OrderNode head; 
+    private OrderNode head;
     private OrderNode tail;
-    private long totalVolume; 
 
-    public PriceLevel(long price) {
-        this.price = price;
-        this.totalVolume = 0;
-    }
+    public PriceLevel(long price) { this.price = price; }
 
-    
-    public void addOrder(Order order) {
-        OrderNode newNode = new OrderNode(order);
-        if (head == null) {
-            head = tail = newNode;
+    public long getPrice() { return price; }
+    public OrderNode getHead() { return head; }
+    public boolean isEmpty() { return head == null; }
+
+    public OrderNode addOrder(Order order) {
+        OrderNode node = new OrderNode(order, this);
+        if (tail == null) {
+            head = tail = node;
         } else {
-            tail.next = newNode;
-            newNode.prev = tail;
-            tail = newNode;
+            tail.next = node;
+            node.prev = tail;
+            tail = node;
         }
-        totalVolume += order.getRemainingQuantity();
+        return node;
     }
-    /**
-     * Returns the available volume at this price level, capped at maxNeeded to stop early.
-     */
+
+    public void removeOrder(OrderNode node) {
+        if (node == null) return;
+        if (node.prev != null) node.prev.next = node.next;
+        else if (head == node) head = node.next;
+        else throw new IllegalArgumentException("Node is not part of this level");
+        if (node.next != null) node.next.prev = node.prev;
+        else tail = node.prev;
+        node.detach();
+    }
+
     public long getAvailableVolumeUpTo(long maxNeeded) {
+        if (maxNeeded <= 0) return 0L;
         long accumulated = 0L;
-        OrderNode current = head;
-        while (current != null && accumulated < maxNeeded) {
-            accumulated += current.getOrder().getRemainingQuantity();
-            current = current.getNext();
+        for (OrderNode node = head; node != null; node = node.getNext()) {
+            long left = maxNeeded - accumulated;
+            accumulated += Math.min(left, node.getOrder().getRemainingQuantity());
+            if (accumulated == maxNeeded) break;
         }
         return accumulated;
     }

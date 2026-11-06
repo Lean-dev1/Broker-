@@ -10,6 +10,8 @@ import main.ledger.Ledger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Orchestrates Pre-Trade Risk Validation, Order Matching, and Post-Trade Atomic Settlement.
@@ -23,6 +25,7 @@ public class TradingCoordinator {
 
     // Tracks open orders by ID in O(1) to resolve resting orders during settlement
     private final Map<Long, Order> openOrdersIndex;
+    private final Set<Long> submittedIds = new HashSet<>();
 
     public TradingCoordinator(TradingPair tradingPair, Ledger ledger, OrderBook orderBook, MatchingEngine matchingEngine) {
         this.tradingPair = tradingPair;
@@ -38,13 +41,23 @@ public class TradingCoordinator {
      * 2. Execution: Matches the order in the engine.
      * 3. Post-Trade Settlement: Settles both sides of every generated trade.
      */
-    public List<Trade> submitOrder(Order aggressiveOrder, long timestamp) {
+    public synchronized List<Trade> submitOrder(Order aggressiveOrder, long timestamp) {
+        if (submittedIds.contains(aggressiveOrder.getId())) {
+            throw new IllegalArgumentException("Order ID already submitted");
+        }
+        if (orderBook.containsOrder(aggressiveOrder.getId())) {
+            throw new IllegalArgumentException("Order ID already active");
+        }
+        if (orderBook.wouldSelfMatch(aggressiveOrder)) {
+            throw new main.domain.SelfTradeException("Self-trading is forbidden");
+        }
         Account aggressiveAccount = ledger.getAccount(aggressiveOrder.getParticipantId());
 
         // 1. Pre-Trade Risk Validation & Hold (Polymorphic Tell, Don't Ask)
         // If funds are insufficient, InsufficientFundsException is thrown here
         // and the order NEVER touches the MatchingEngine or OrderBook.
         aggressiveOrder.reserveFunds(aggressiveAccount, tradingPair);
+        submittedIds.add(aggressiveOrder.getId());
 
         // 2. Matching Execution
         List<Trade> trades = matchingEngine.process(aggressiveOrder, timestamp);
@@ -67,7 +80,7 @@ public class TradingCoordinator {
     /**
      * Cancels an open order in the book and immediately unlocks its remaining held funds.
      */
-    public boolean cancelOrder(long orderId) {
+    public synchronized boolean cancelOrder(long orderId) {
         Order canceledOrder = orderBook.cancelOrder(orderId);
         if (canceledOrder == null) {
             return false;

@@ -40,8 +40,15 @@ public class Account {
     }
 
     public void settle(String outgoingAsset, long outgoingHeldAmount, String incomingAsset, long incomingAmount) {
-        getOrCreateBalance(outgoingAsset).settleHeld(outgoingHeldAmount);
-        getOrCreateBalance(incomingAsset).creditAvailable(incomingAmount);
+        if (outgoingAsset.equals(incomingAsset)) {
+            throw new IllegalArgumentException("Outgoing and incoming assets must differ");
+        }
+        AssetBalance outgoing = getOrCreateBalance(outgoingAsset);
+        AssetBalance incoming = getOrCreateBalance(incomingAsset);
+        outgoing.verifyCanSettleHeld(outgoingHeldAmount);
+        incoming.verifyCanCredit(incomingAmount);
+        outgoing.settleHeld(outgoingHeldAmount);
+        incoming.creditAvailable(incomingAmount);
     }
 
     public long getAvailableBalance(String assetSymbol) {
