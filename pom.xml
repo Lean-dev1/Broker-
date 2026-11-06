@@ -74,7 +74,9 @@
                         <param>main.engine.*</param>
                     </targetClasses>
                     <targetTests>
-                        <param>main.engine.*</param>
+                        <param>engine.*</param>
+                        <param>test.engine.*</param>
+                        <param>tests.engine.*</param>
                     </targetTests>
                     <mutators>
                         <mutator>DEFAULTS</mutator>
