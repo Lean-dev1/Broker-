@@ -21,6 +21,8 @@ public final class OrderNode {
         }
     }
 
+    boolean belongsTo(PriceLevel expected) { return level == expected; }
+
     void detach() {
         level = null;
         next = null;

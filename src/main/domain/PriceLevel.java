@@ -25,7 +25,9 @@ public final class PriceLevel {
     }
 
     public void removeOrder(OrderNode node) {
-        if (node == null) return;
+        if (node == null || !node.belongsTo(this)) {
+            throw new IllegalArgumentException("Node is not part of this price level");
+        }
         if (node.prev != null) node.prev.next = node.next;
         else if (head == node) head = node.next;
         else throw new IllegalArgumentException("Node is not part of this level");
