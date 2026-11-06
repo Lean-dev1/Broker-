@@ -1,4 +1,4 @@
-package ledger;
+package main.ledger;
 
 import java.util.HashMap;
 import java.util.Map;

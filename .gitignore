@@ -1,0 +1,15 @@
+# Maven outputs
+target/
+dependency-reduced-pom.xml
+
+# Java / IDE
+*.class
+.classpath
+.project
+.settings/
+.idea/
+*.iml
+
+# OS / editor
+.DS_Store
+.vscode/

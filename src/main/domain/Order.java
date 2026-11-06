@@ -1,6 +1,7 @@
 package main.domain;
 
 import main.ledger.Account;
+import main.engine.MatchingEngine;
 
 public abstract class Order {
     private final long id;
@@ -21,10 +22,16 @@ public abstract class Order {
     }
 
     public void fill(long executedAmount) {
-        if (executedAmount > this.remainingQuantity) {
+        if (executedAmount <= 0 || executedAmount > this.remainingQuantity) {
             throw new IllegalArgumentException("Execution exceeds remaining quantity");
         }
         this.remainingQuantity -= executedAmount;
+    }
+
+    public boolean canBeCompletelyFilledBy(OrderBook book) {
+        if (this instanceof BuyOrder) return book.canFillBuyCompletely(price, remainingQuantity);
+        if (this instanceof SellOrder) return book.canFillSellCompletely(price, remainingQuantity);
+        throw new IllegalStateException("Unknown order side");
     }
 
     public boolean isFilled() {

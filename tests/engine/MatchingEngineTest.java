@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import main.domain.*;
+import main.engine.MatchingEngine;
+import main.engine.TradingCoordinator;
 
 import java.util.List;
 

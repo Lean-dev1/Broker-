@@ -1,9 +1,11 @@
 package tests.engine;
 
-import com.jerez.fintech.domain.*;
-import com.jerez.fintech.ledger.Account;
-import com.jerez.fintech.ledger.InsufficientFundsException;
-import com.jerez.fintech.ledger.Ledger;
+import main.domain.*;
+import main.engine.MatchingEngine;
+import main.engine.TradingCoordinator;
+import main.ledger.Account;
+import main.ledger.InsufficientFundsException;
+import main.ledger.Ledger;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -73,7 +75,7 @@ class TradingCoordinatorFuzzTest {
                     if (!order.isFilled()) {
                         potentiallyActiveOrderIds.add(orderId);
                     }
-                } catch (InsufficientFundsException ignored) {
+                } catch (InsufficientFundsException | SelfTradeException ignored) {
                     // Expected in chaotic trading when a trader locks all their capital;
                     // invariant must still hold!
                 }

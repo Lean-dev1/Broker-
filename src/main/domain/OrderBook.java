@@ -1,90 +1,96 @@
 package main.domain;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class OrderBook {
+/** In-memory price/time priority book for one instrument. */
+public final class OrderBook {
     private final String instrument;
-    private final Map<Long, OrderNode> activeOrders;
-    private final TreeMap<Long, PriceLevel> bids;
-    private final TreeMap<Long, PriceLevel> asks;
+    private final Map<Long, OrderNode> activeOrders = new HashMap<>();
+    private final TreeMap<Long, PriceLevel> bids = new TreeMap<>(Collections.reverseOrder());
+    private final TreeMap<Long, PriceLevel> asks = new TreeMap<>();
 
     public OrderBook(String instrument) {
+        if (instrument == null || instrument.isBlank()) throw new IllegalArgumentException("Instrument required");
         this.instrument = instrument;
-        this.activeOrders = new HashMap<>();
-        this.bids = new TreeMap<>(Collections.reverseOrder());
-        this.asks = new TreeMap<>();
     }
 
-    /**
-     * Tell, Don't Ask: Le decimos a la orden que se encargue de su propio enrutamiento.
-     * Cero sentencias "if", delegación total al polimorfismo.
-     */
+    public String getInstrument() { return instrument; }
+    public boolean hasBids() { return !bids.isEmpty(); }
+    public boolean hasAsks() { return !asks.isEmpty(); }
+    public Long getBestBid() { return hasBids() ? bids.firstKey() : null; }
+    public Long getBestAsk() { return hasAsks() ? asks.firstKey() : null; }
+    public PriceLevel getBestBidLevel() { return hasBids() ? bids.firstEntry().getValue() : null; }
+    public PriceLevel getBestAskLevel() { return hasAsks() ? asks.firstEntry().getValue() : null; }
+    public PriceLevel getLevel(Side side, long price) {
+        return (side == Side.BUY ? bids : asks).get(price);
+    }
+    public boolean containsOrder(long orderId) { return activeOrders.containsKey(orderId); }
+
     public void enqueueOrder(Order order) {
+        if (activeOrders.containsKey(order.getId())) throw new IllegalArgumentException("Duplicate active order ID");
         OrderNode node = order.routeTo(this);
         activeOrders.put(order.getId(), node);
     }
 
-    // Métodos con visibilidad de paquete (package-private) 
-    // para que solo BuyOrder y SellOrder puedan invocarlos internamente.
     OrderNode addBid(BuyOrder order) {
-        PriceLevel level = bids.computeIfAbsent(order.getPrice(), PriceLevel::new);
-        return level.addOrder(order);
+        return bids.computeIfAbsent(order.getPrice(), PriceLevel::new).addOrder(order);
     }
-
     OrderNode addAsk(SellOrder order) {
-        PriceLevel level = asks.computeIfAbsent(order.getPrice(), PriceLevel::new);
-        return level.addOrder(order);
+        return asks.computeIfAbsent(order.getPrice(), PriceLevel::new).addOrder(order);
     }
 
-   /**
-     * Cancels an order in O(1) time and returns it so held funds can be released.
-     */
+    public void removeBestBid() {
+        if (!bids.isEmpty() && bids.firstEntry().getValue().isEmpty()) bids.pollFirstEntry();
+    }
+    public void removeBestAsk() {
+        if (!asks.isEmpty() && asks.firstEntry().getValue().isEmpty()) asks.pollFirstEntry();
+    }
+    public void removeActiveOrder(long orderId) { activeOrders.remove(orderId); }
+
     public Order cancelOrder(long orderId) {
         OrderNode node = activeOrders.remove(orderId);
-        if (node == null) {
-            return null;
-        }
+        if (node == null) return null;
+        Order order = node.getOrder();
         node.removeFromLevel();
-        return node.getOrder();
+        TreeMap<Long, PriceLevel> levels = order instanceof BuyOrder ? bids : asks;
+        PriceLevel level = levels.get(order.getPrice());
+        if (level != null && level.isEmpty()) levels.remove(order.getPrice());
+        return order;
     }
 
-    /**
-     * Non-destructive check for Buy FOK orders: verifies if asks up to limitPrice can cover requiredQty.
-     */
-    public boolean canFillBuyCompletely(long limitPrice, long requiredQty) {
-        long accumulated = 0L;
-        for (PriceLevel level : asks.values()) {
-            if (level.getPrice() > limitPrice) {
-                break; // TreeMap is sorted ascending; no further levels can match
-            }
-            accumulated += level.getAvailableVolumeUpTo(requiredQty - accumulated);
-            if (accumulated >= requiredQty) {
-                return true;
+    /** Reject self matching before any mutation of the incoming order. */
+    public boolean wouldSelfMatch(Order incoming) {
+        TreeMap<Long, PriceLevel> opposite = incoming instanceof BuyOrder ? asks : bids;
+        for (PriceLevel level : opposite.values()) {
+            if (incoming instanceof BuyOrder && level.getPrice() > incoming.getPrice()) break;
+            if (incoming instanceof SellOrder && level.getPrice() < incoming.getPrice()) break;
+            for (OrderNode n = level.getHead(); n != null; n = n.getNext()) {
+                if (incoming.getParticipantId().equals(n.getOrder().getParticipantId())) return true;
             }
         }
         return false;
     }
 
-    /**
-     * Non-destructive check for Sell FOK orders: verifies if bids down to limitPrice can cover requiredQty.
-     */
+    public boolean canFillBuyCompletely(long limitPrice, long requiredQty) {
+        if (requiredQty <= 0) return false;
+        long accumulated = 0L;
+        for (PriceLevel level : asks.values()) {
+            if (level.getPrice() > limitPrice) break;
+            accumulated += level.getAvailableVolumeUpTo(requiredQty - accumulated);
+            if (accumulated >= requiredQty) return true;
+        }
+        return false;
+    }
     public boolean canFillSellCompletely(long limitPrice, long requiredQty) {
+        if (requiredQty <= 0) return false;
         long accumulated = 0L;
         for (PriceLevel level : bids.values()) {
-            if (level.getPrice() < limitPrice) {
-                break; // Bids TreeMap is sorted descending; no further levels can match
-            }
+            if (level.getPrice() < limitPrice) break;
             accumulated += level.getAvailableVolumeUpTo(requiredQty - accumulated);
-            if (accumulated >= requiredQty) {
-                return true;
-            }
+            if (accumulated >= requiredQty) return true;
         }
         return false;
     }

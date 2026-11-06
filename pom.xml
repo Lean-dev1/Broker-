@@ -46,6 +46,8 @@
     </dependencies>
 
     <build>
+        <sourceDirectory>src/main</sourceDirectory>
+        <testSourceDirectory>tests</testSourceDirectory>
         <plugins>
             <!-- Plugin para ejecutar los tests de JUnit -->
             <plugin>
@@ -68,11 +70,11 @@
                 </dependencies>
                 <configuration>
                     <targetClasses>
-                        <param>com.jerez.fintech.domain.*</param>
-                        <param>com.jerez.fintech.engine.*</param>
+                        <param>main.domain.*</param>
+                        <param>main.engine.*</param>
                     </targetClasses>
                     <targetTests>
-                        <param>com.jerez.fintech.engine.*</param>
+                        <param>main.engine.*</param>
                     </targetTests>
                     <mutators>
                         <mutator>DEFAULTS</mutator>

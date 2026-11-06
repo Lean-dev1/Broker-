@@ -1,19 +1,29 @@
 package main.domain;
-/**
- * Private node of our Doubly Linked List.
-   Acts as a wrapperr for the Order 
 
-*/
-public class OrderNode {
+/** Node in a price level's FIFO doubly linked list. */
+public final class OrderNode {
     private final Order order;
-    OrderNode next; // Package-private visibility so it can be manipulated by PriceLevel
+    private PriceLevel level;
+    OrderNode next;
     OrderNode prev;
 
-    public OrderNode(Order order) {
+    OrderNode(Order order, PriceLevel level) {
         this.order = order;
+        this.level = level;
     }
 
-    public Order getOrder() {
-        return order;
+    public Order getOrder() { return order; }
+    public OrderNode getNext() { return next; }
+
+    public void removeFromLevel() {
+        if (level != null) {
+            level.removeOrder(this);
+        }
+    }
+
+    void detach() {
+        level = null;
+        next = null;
+        prev = null;
     }
 }
