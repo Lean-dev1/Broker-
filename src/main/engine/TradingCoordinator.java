@@ -1,6 +1,9 @@
 package main.engine;
 
 import main.domain.Order;
+import main.domain.BuyOrder;
+import main.domain.SellOrder;
+import main.domain.Side;
 import main.domain.OrderBook;
 import main.domain.OrderStatus;
 import main.domain.SelfTradeException;
@@ -28,6 +31,26 @@ public final class TradingCoordinator {
     private final MatchingEngine matchingEngine;
     private final Map<Long, Order> openOrdersIndex = new HashMap<>();
     private final Set<Long> submittedIds = new HashSet<>();
+    private final Map<String, CompletedSubmission> committedCommands = new HashMap<>();
+
+    /** Immutable identity of a request, deliberately excluding mutable order status. */
+    private record SubmissionIntent(long orderId, String participantId, Side side,
+                                    long limitPrice, long initialQuantity, long timestamp,
+                                    TimeInForce policy) {
+        static SubmissionIntent capture(Order order, long timestamp, TimeInForce policy) {
+            Objects.requireNonNull(order, "order");
+            Objects.requireNonNull(policy, "time in force");
+            Side side;
+            if (order instanceof BuyOrder) side = Side.BUY;
+            else if (order instanceof SellOrder) side = Side.SELL;
+            else throw new IllegalArgumentException("Unsupported order subtype");
+            return new SubmissionIntent(order.getId(), order.getParticipantId(), side,
+                    order.getPrice(), order.getInitialQuantity(), timestamp, policy);
+        }
+    }
+
+    private record CompletedSubmission(SubmissionIntent intent, SubmissionReceipt receipt) {}
+
 
     public TradingCoordinator(TradingPair tradingPair, Ledger ledger, OrderBook orderBook,
                               MatchingEngine matchingEngine) {
@@ -48,12 +71,42 @@ public final class TradingCoordinator {
      */
     public synchronized List<Trade> submitOrder(Order order, long timestamp, TimeInForce policy) {
         synchronized (ledger) {
-            return submitOrderUnderLedgerLock(order, timestamp, policy);
+            return submitOrderUnderLedgerLock(order, timestamp, policy, null, null);
+        }
+    }
+
+    /**
+     * Retry-safe *within this JVM only*. Identical command IDs and requests
+     * return their original receipt without touching the order book or ledger.
+     * Conflicting reuse of a committed command ID is rejected before mutation.
+     *
+     * Command IDs must be 1..128 ASCII characters: letters, digits, dot,
+     * underscore, colon or hyphen. An accepted no-fill FOK consumes its ID.
+     * Rejected/rolled-back submissions do not consume their command IDs.
+     */
+    public synchronized SubmissionReceipt submitOrderIdempotent(
+            Order order, long timestamp, TimeInForce policy, String commandId) {
+        if (commandId == null || !commandId.matches("[A-Za-z0-9._:-]{1,128}")) {
+            throw new IllegalArgumentException("Invalid command ID format");
+        }
+        SubmissionIntent intent = SubmissionIntent.capture(order, timestamp, policy);
+        synchronized (ledger) {
+            CompletedSubmission prior = committedCommands.get(commandId);
+            if (prior != null) {
+                if (!prior.intent().equals(intent)) {
+                    throw new IdempotencyConflictException(commandId);
+                }
+                return prior.receipt();
+            }
+            submitOrderUnderLedgerLock(order, timestamp, policy, commandId, intent);
+            return committedCommands.get(commandId).receipt();
         }
     }
 
     /** Ledger and coordinator mutation cannot interleave with an external ledger command. */
-    private List<Trade> submitOrderUnderLedgerLock(Order order, long timestamp, TimeInForce policy) {
+    private List<Trade> submitOrderUnderLedgerLock(
+            Order order, long timestamp, TimeInForce policy,
+            String commandId, SubmissionIntent intent) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(policy, "time in force");
         if (order.getStatus() != OrderStatus.CREATED) {
@@ -76,7 +129,7 @@ public final class TradingCoordinator {
             if (policy == TimeInForce.FOK && !order.canBeCompletelyFilledBy(orderBook)) {
                 order.releaseRemainingFunds(ledger, tradingPair);
                 order.cancelRemaining();
-                return List.of();
+                return completeSubmission(order, policy, List.of(), commandId, intent);
             }
 
             // The raw engine has GTC resting semantics; IOC is explicitly unlinked afterward.
@@ -101,7 +154,7 @@ public final class TradingCoordinator {
             if (policy == TimeInForce.FOK && !order.isFilled()) {
                 throw new IllegalStateException("FOK violated all-or-nothing execution");
             }
-            return List.copyOf(trades);
+            return completeSubmission(order, policy, trades, commandId, intent);
         } catch (RuntimeException | Error failure) {
             rollback(checkpoint, failure);
             throw failure;
@@ -148,12 +201,36 @@ public final class TradingCoordinator {
         }
     }
 
+    /**
+     * Finalize the request and memoize the immutable response within the same
+     * rollback boundary as the financial effects.
+     */
+    private List<Trade> completeSubmission(Order order, TimeInForce policy,
+                                            List<Trade> trades, String commandId,
+                                            SubmissionIntent intent) {
+        List<Trade> immutable = List.copyOf(trades);
+        if (commandId != null) {
+            SubmissionReceipt receipt = new SubmissionReceipt(
+                    commandId, order.getId(), policy, intent.timestamp(),
+                    order.getStatus(), order.getInitialQuantity(),
+                    order.getExecutedQuantity(), order.getRemainingQuantity(),
+                    order.getCanceledQuantity(), immutable);
+            if (committedCommands.putIfAbsent(commandId,
+                    new CompletedSubmission(intent, receipt)) != null) {
+                throw new IllegalStateException("Command ID unexpectedly committed twice");
+            }
+        }
+        return immutable;
+    }
+
     private record Checkpoint(OrderBook.Snapshot book, Ledger.Snapshot ledger,
-                              Map<Long, Order> openOrders, Set<Long> submittedIds) {}
+                              Map<Long, Order> openOrders, Set<Long> submittedIds,
+                              Map<String, CompletedSubmission> committedCommands) {}
 
     private Checkpoint checkpoint(Order incoming) {
         return new Checkpoint(orderBook.snapshot(incoming), ledger.snapshot(),
-                new HashMap<>(openOrdersIndex), new HashSet<>(submittedIds));
+                new HashMap<>(openOrdersIndex), new HashSet<>(submittedIds),
+                new HashMap<>(committedCommands));
     }
 
     private void rollback(Checkpoint checkpoint, Throwable failure) {
@@ -171,5 +248,7 @@ public final class TradingCoordinator {
         openOrdersIndex.putAll(checkpoint.openOrders());
         submittedIds.clear();
         submittedIds.addAll(checkpoint.submittedIds());
+        committedCommands.clear();
+        committedCommands.putAll(checkpoint.committedCommands());
     }
 }

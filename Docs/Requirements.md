@@ -81,6 +81,22 @@ All requirements below are for **simulation** only.
 - **Boundary:** This requirement does not address durable storage, full
   order-book recovery, or idempotence after a process crash.
 
+### FR-009 — Idempotent order submission within one coordinator
+- **AC-009.1:** A client-generated command ID (distinct from the order ID)
+  plus identical immutable request fields returns the original immutable
+  submission receipt on retry, even if the live order has since changed.
+- **AC-009.2:** Reusing an accepted command ID with any different immutable
+  request field (including timestamp or policy) rejects without side effects.
+- **AC-009.3:** Concurrent identical retries through one coordinator result
+  in one accepted submission, one collateral hold and one cached receipt.
+- **AC-009.4:** IOC partial fills and unfilled FOK cancellation do not produce
+  duplicate executions or accounting postings when retried.
+- **AC-009.5:** Rejected or rolled-back commands do not consume their
+  command IDs; a valid retry can be accepted later.
+- **AC-009.6:** Existing non-idempotent `submitOrder` APIs remain supported.
+- **Boundary:** Only current-JVM, current-coordinator deduplication is
+  guaranteed; there is no durable cross-restart command registry.
+
 ## Nonfunctional Requirements
 
 - **NFR-001 Determinism:** same initial state and input order yields the same

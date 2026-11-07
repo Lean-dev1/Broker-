@@ -7,7 +7,7 @@
 | R-003 | External or concurrent mutation of shared accounts/book | Critical | High | Account public writes removed; Ledger serialized; book/order isolation and concurrency tests remain | Partially mitigated |
 | R-004 | Accounting errors and ambiguous integer asset scales | High | Medium | Specify tick size, lot size, amount scale; all balance movements need auditable postings | Partially mitigated for executed trades only |
 | R-005 | Arithmetic overflow | High | Medium | Math.addExact / multiplyExact and exception rollback | Partially mitigated |
-| R-006 | Order ID replay or non-idempotent external requests | High | Medium | Stable command IDs, external funding references and persistent deduplication | OPEN |
+| R-006 | Order ID replay or non-idempotent external requests | High | Medium | Immutable command fingerprints and in-memory receipt cache added; persistent deduplication still required | Partially mitigated within one JVM |
 | R-007 | O(N) snapshots on every operation harming latency | High | High | Replace snapshots with validated execution plans + atomic commit | OPEN |
 | R-008 | Scope expansion before core correctness | Medium | High | Milestones, acceptance criteria and CI gates | Active monitoring |
 | R-009 | Unverified benchmark claims | Medium | Medium | Record JVM, CPU, input distribution, warmup and test mode | OPEN |

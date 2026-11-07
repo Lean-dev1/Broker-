@@ -13,6 +13,8 @@ The implementation currently supports an **in-memory simulated market**, not liv
 - `Account`, `AssetBalance`: available and held balances in integer minor units.
 - `LedgerPosting`, `LedgerTransaction`: immutable in-memory signed postings
   for executed trades, balanced per asset.
+- `SubmissionReceipt`: immutable acceptance-time response to an idempotent
+  command; command ID and order ID are different identities.
 - `LedgerOperation`, `LedgerRecord`: explicit in-memory events for deposits,
   withdrawals, holds and releases in the same chronological sequence.
 
