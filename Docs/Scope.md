@@ -29,8 +29,10 @@ Explicit Exclusions (Will not be implemented in Iteration 1):
 
 ## Implementation status note (2026-11-05)
 
-The repository already contains experimental ledger/coordinator and IOC/FOK
-strategy implementations from later work. These files do **not** change the
-Iteration 1 acceptance scope: the primary engine currently runs GTC-style
-matching; IOC/FOK are not wired into the submit path. Financial atomicity,
-persistence, and production readiness remain out of scope and unverified.
+The repository includes experimental ledger/coordinator components in addition
+to the original Iteration 1 scope. `TradingCoordinator` currently supports
+GTC, IOC and FOK; standalone `MatchingEngine` retains GTC behavior.
+Executed trades now produce balanced, immutable in-memory postings.
+This is **not** a full general ledger, persistent journal or production-ready
+implementation. Data durability, crash recovery and multi-process isolation
+remain out of scope for this iteration.

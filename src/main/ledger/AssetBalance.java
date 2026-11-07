@@ -1,6 +1,6 @@
 package main.ledger;
 
-/** Balance in integral minor units. Mutable and single-writer only. */
+/** Balance in integer minor units; no external concurrency guarantees. */
 public class AssetBalance {
     private final String assetSymbol;
     private long available;
@@ -23,6 +23,22 @@ public class AssetBalance {
     void restoreState(State snapshot) {
         available = snapshot.available();
         held = snapshot.held();
+    }
+
+    /** Validate the prospective balance without any mutation. */
+    long nextValue(BalanceBucket bucket, long delta) {
+        long current = bucket == BalanceBucket.AVAILABLE ? available : held;
+        long next = Math.addExact(current, delta);
+        if (next < 0) {
+            throw new InsufficientFundsException("Insufficient " + bucket + " balance for " + assetSymbol);
+        }
+        return next;
+    }
+
+    void adjust(BalanceBucket bucket, long delta) {
+        long next = nextValue(bucket, delta);
+        if (bucket == BalanceBucket.AVAILABLE) available = next;
+        else held = next;
     }
 
     public void creditAvailable(long amount) {

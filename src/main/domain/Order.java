@@ -86,6 +86,4 @@ public abstract class Order {
     public abstract void processBy(MatchingEngine engine, List<Trade> executions, long timestamp);
     public abstract void reserveFunds(Account account, TradingPair pair);
     public abstract void releaseRemainingFunds(Account account, TradingPair pair);
-    public abstract void settleExecution(Account account, TradingPair pair,
-                                         long executionPrice, long executedQuantity);
 }

@@ -21,6 +21,8 @@ public class Account {
     public void hold(String asset, long amount) { getOrCreateBalance(asset).hold(amount); }
     public void release(String asset, long amount) { getOrCreateBalance(asset).release(amount); }
 
+    /** Legacy non-journaled settlement method. New trades use Ledger.recordTrade. */
+    @Deprecated
     public void settle(String outgoingAsset, long outgoingHeld, String incomingAsset, long incomingAmount) {
         if (outgoingAsset.equals(incomingAsset)) {
             throw new IllegalArgumentException("Outgoing and incoming assets must differ");
@@ -31,6 +33,14 @@ public class Account {
         incoming.verifyCanCredit(incomingAmount);
         outgoing.settleHeld(outgoingHeld);
         incoming.creditAvailable(incomingAmount);
+    }
+
+    /** Package-private mutation entry point for balanced trade posting application. */
+    void applyPosting(LedgerPosting posting) {
+        if (!participantId.equals(posting.participantId())) {
+            throw new IllegalArgumentException("Posting refers to another account");
+        }
+        getOrCreateBalance(posting.assetSymbol()).adjust(posting.bucket(), posting.delta());
     }
 
     public long getAvailableBalance(String asset) {

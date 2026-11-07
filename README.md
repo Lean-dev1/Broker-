@@ -9,13 +9,16 @@ simulated settlement, invariants and performance. **Not a production broker.**
 - GTC, IOC and FOK execution through `TradingCoordinator`.
 - Deterministic trade timestamps injected by the caller.
 - Multi-asset in-memory accounts with held collateral.
+- Immutable, per-asset balanced **trade** postings recorded in memory.
 - Explicit order lifecycle and quantity conservation.
 - Single-writer in-memory transaction rollback on synchronous failures.
 - JUnit regressions, seeded randomized tests and JMH microbenchmarks.
 
 **Important:** Rollback uses a full in-memory snapshot per command. This
 sacrifices throughput and memory for correctness in the current simulator.
-There is no crash recovery, persistent journal, security, audit trail, network
+Trade postings do **not** include deposits, withdrawals, holds or releases yet;
+there is no complete double-entry ledger. There is no crash recovery,
+persistent journal, security, durable audit trail, network
 access layer, or concurrency isolation from external mutations.
 
 ## Requirements
@@ -62,6 +65,8 @@ directories via explicit Maven configuration.
 - [Architecture](Docs/architecture.md)
 - [Quality attributes](Docs/quality-attributes.md)
 - [Risk register](Docs/risk-register.md)
+- [ADR 0001: Balanced trade postings](Docs/adr/0001-balanced-trade-postings.md)
+- [ADR 0002: Durable transaction options](Docs/adr/0002-durable-transaction-boundary-options.md)
 
 ## Open engineering problems
 

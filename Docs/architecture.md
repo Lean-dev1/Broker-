@@ -6,7 +6,8 @@
 - `main.engine.MatchingEngine`: deterministic price-time matching (GTC-style).
 - `main.engine.TradingCoordinator`: order admission, simulated risk hold,
   matching, ledger settlement, cancellation, and time-in-force semantics.
-- `main.ledger`: in-memory account balances, including held collateral.
+- `main.ledger`: in-memory account balances and immutable, per-asset balanced
+  postings for **executed trades only**. No durable accounting journal yet.
 - `main.performance`: development JMH experiments.
 
 ## Single-process transaction mechanism
@@ -15,7 +16,8 @@ The coordinator serializes its own submit/cancel operations and captures a
 checkpoint immediately before a mutating attempt:
 
 1. Book entries, FIFO order, and mutable states of resting/incoming orders.
-2. Every account balance (`available` and `held` by asset).
+2. Every account balance (`available` and `held` by asset), plus the
+   in-memory trade-posting journal length and sequence counter.
 3. Coordinator's open-order index and consumed order-ID registry.
 
 On synchronous exceptions, it restores those snapshots and rethrows. This
@@ -40,6 +42,9 @@ The old unused policy strategy types have been removed in favor of the
 `TimeInForce` enum as the source of truth.
 
 ## Next architectural milestone
+
+ADR-0001 introduces inspectable trade postings without selecting persistence.
+ADR-0002 compares durable log approaches; storage technology is still undecided.
 
 Replace full-state snapshots with a properly isolated order-processing boundary,
 a prepared execution plan and a durable, replayable journal. Design idempotent
