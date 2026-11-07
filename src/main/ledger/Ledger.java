@@ -177,6 +177,23 @@ public class Ledger {
             if (after < 0) throw new InsufficientFundsException("Posting would make " + key + " negative");
             projected.put(key, after);
         }
+        // Even if both buckets individually fit in long, their sum must fit too.
+        // Validate each touched account/asset before committing any posting.
+        record AssetKey(String participant, String asset) {}
+        java.util.Set<AssetKey> affected = new java.util.HashSet<>();
+        for (LedgerPosting posting : postings) {
+            affected.add(new AssetKey(posting.participantId(), posting.assetSymbol()));
+        }
+        for (AssetKey asset : affected) {
+            Account account = getAccount(asset.participant());
+            long available = projected.getOrDefault(
+                    new BalanceKey(asset.participant(), asset.asset(), BalanceBucket.AVAILABLE),
+                    account.getAvailableBalance(asset.asset()));
+            long held = projected.getOrDefault(
+                    new BalanceKey(asset.participant(), asset.asset(), BalanceBucket.HELD),
+                    account.getHeldBalance(asset.asset()));
+            Math.addExact(available, held);
+        }
         for (LedgerPosting posting : postings) {
             getAccount(posting.participantId()).applyPosting(posting);
         }

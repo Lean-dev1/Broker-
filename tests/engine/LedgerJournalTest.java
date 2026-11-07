@@ -7,8 +7,6 @@ import main.ledger.*;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -121,6 +119,21 @@ class LedgerJournalTest {
         assertEquals(100, buyer.getAvailableBalance("ARS"));
         assertEquals(10, buyer.getAvailableBalance("ALUA"));
         assertEquals(1000, seller.getAvailableBalance("ARS"));
+    }
+
+    @Test
+    void rejectsCombinedAvailableAndHeldTotalOverflow() {
+        Ledger ledger = new Ledger();
+        Account account = ledger.createAccount("trader");
+        ledger.deposit("trader", "ARS", Long.MAX_VALUE);
+        ledger.hold("trader", "ARS", Long.MAX_VALUE);
+
+        assertThrows(ArithmeticException.class,
+                () -> ledger.deposit("trader", "ARS", 1));
+        assertEquals(2, ledger.getJournal().size());
+        assertEquals(0, account.getAvailableBalance("ARS"));
+        assertEquals(Long.MAX_VALUE, account.getHeldBalance("ARS"));
+        assertEquals(Long.MAX_VALUE, account.getTotalBalance("ARS"));
     }
 
     @Test
