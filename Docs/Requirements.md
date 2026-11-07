@@ -69,6 +69,18 @@ All requirements below are for **simulation** only.
 - **AC-007.6:** External callers cannot mutate Account balances
   directly through its public API.
 
+### FR-008 — Independent in-memory ledger reconciliation
+- **AC-008.1:** Replay reconstructs available/held balances using only the
+  ordered journal and without mutating the input or live accounts.
+- **AC-008.2:** Sequence gaps, duplicate sequence numbers and invalid balance
+  transitions fail with a descriptive exception.
+- **AC-008.3:** `Ledger.reconcile()` detects discrepancies between the
+  replay-derived and current balances.
+- **AC-008.4:** Failed multi-trade commands do not leave trade postings in
+  the reconstructed state; successful retries reconcile correctly.
+- **Boundary:** This requirement does not address durable storage, full
+  order-book recovery, or idempotence after a process crash.
+
 ## Nonfunctional Requirements
 
 - **NFR-001 Determinism:** same initial state and input order yields the same

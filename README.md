@@ -12,6 +12,8 @@ simulated settlement, invariants and performance. **Not a production broker.**
 - Immutable, per-asset balanced **trade** postings recorded in memory.
 - Ordered in-memory audit records for external deposits/withdrawals and
   internal holds/releases; all balance writes go through Ledger.
+- Independent `LedgerAuditor.replay(journal)` and `ledger.reconcile()` to verify
+  recorded postings reproduce current available/held balances.
 - Explicit order lifecycle and quantity conservation.
 - Single-writer in-memory transaction rollback on synchronous failures.
 - JUnit regressions, seeded randomized tests and JMH microbenchmarks.
@@ -70,6 +72,7 @@ directories via explicit Maven configuration.
 - [ADR 0001: Balanced trade postings](Docs/adr/0001-balanced-trade-postings.md)
 - [ADR 0002: Durable transaction options](Docs/adr/0002-durable-transaction-boundary-options.md)
 - [ADR 0003: Audit all balance movements](Docs/adr/0003-audit-all-balance-movements.md)
+- [ADR 0004: Independent ledger reconciliation](Docs/adr/0004-independent-ledger-reconciliation.md)
 
 ## Open engineering problems
 
