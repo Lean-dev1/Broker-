@@ -10,6 +10,7 @@
 | Financial conservation | Base/quote totals preserved by successful internal trades | Fuzz tests |
 | In-memory audit completeness | Each ledger deposit/withdraw/hold/release/trade produces ordered immutable entries | LedgerJournalTest |
 | Ledger reconciliation | Independent replay of postings agrees with live balances | LedgerReconciliationTest and fuzz test |
+| In-process command idempotency | Same command ID + immutable request returns the same receipt and financial effects exactly once in one coordinator | IdempotentSubmissionTest |
 | Numeric safety | Available, held AND their combined total must fit in long | Overflow regression tests |
 | Synchronous failure atomicity | Snapshot/restore book, balances, IDs, orders | Mid-settlement overflow regression |
 | Crash durability/recovery | **NOT IMPLEMENTED** | Future write-ahead log/replay |

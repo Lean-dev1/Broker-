@@ -21,9 +21,15 @@ checkpoint immediately before a mutating attempt:
 1. Book entries, FIFO order, and mutable states of resting/incoming orders.
 2. Every account balance (`available` and `held` by asset), plus the
    in-memory trade-posting journal length and sequence counter.
-3. Coordinator's open-order index and consumed order-ID registry.
+3. Coordinator's open-order index, consumed order-ID registry, and
+   accepted command-ID/immutable receipt registry.
 
-On synchronous exceptions, it restores those snapshots and rethrows. This
+On synchronous exceptions, it restores those snapshots and rethrows.
+
+An optional `submitOrderIdempotent` entry point captures immutable request
+fields and returns the cached acceptance receipt for identical command IDs.
+It rejects conflicting command ID reuse before mutation. This cache exists
+only in memory; it is not a persistent exactly-once delivery guarantee. This
 also covers a second-trade settlement failure following an earlier settlement.
 
 **Cost:** O(number of live orders + number of participant balances) per
@@ -49,6 +55,8 @@ The old unused policy strategy types have been removed in favor of the
 ADRs 0001 and 0003 introduce an auditable in-memory journal for all balance
 movements without selecting persistence.
 ADR-0002 compares durable log approaches; storage technology is still undecided.
+ADR-0005 specifies in-process retry/deduplication semantics as a prerequisite
+for future durable command processing.
 
 Replace full-state snapshots with a properly isolated order-processing boundary,
 a prepared execution plan and a durable, replayable journal. Design idempotent

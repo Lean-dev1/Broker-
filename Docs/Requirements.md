@@ -51,9 +51,10 @@ All requirements below are for **simulation** only.
   rolls back those entries and the sequence counter as well as all balances.
 - **AC-006.5:** Invalid/overflowing postings fail rather than silently
   producing negative balances or wrapped integer values.
-- **Scope note:** Deposits, withdrawals, holds and cancellations are not yet
-  recorded in the immutable trade posting journal. Full double-entry
-  accounting and crash persistence are future work.
+- **Scope note:** Deposits, withdrawals, holds and releases are recorded
+  as separate immutable `LedgerOperation` entries in the unified in-memory
+  journal (FR-007). Full production double-entry accounting, external
+  clearing evidence and crash persistence remain future work.
 
 ### FR-007 — Audit all simulated balance movements
 - **AC-007.1:** Deposits and withdrawals are represented by immutable,
@@ -80,6 +81,22 @@ All requirements below are for **simulation** only.
   the reconstructed state; successful retries reconcile correctly.
 - **Boundary:** This requirement does not address durable storage, full
   order-book recovery, or idempotence after a process crash.
+
+### FR-009 — Idempotent order submission within one coordinator
+- **AC-009.1:** A client-generated command ID (distinct from the order ID)
+  plus identical immutable request fields returns the original immutable
+  submission receipt on retry, even if the live order has since changed.
+- **AC-009.2:** Reusing an accepted command ID with any different immutable
+  request field (including timestamp or policy) rejects without side effects.
+- **AC-009.3:** Concurrent identical retries through one coordinator result
+  in one accepted submission, one collateral hold and one cached receipt.
+- **AC-009.4:** IOC partial fills and unfilled FOK cancellation do not produce
+  duplicate executions or accounting postings when retried.
+- **AC-009.5:** Rejected or rolled-back commands do not consume their
+  command IDs; a valid retry can be accepted later.
+- **AC-009.6:** Existing non-idempotent `submitOrder` APIs remain supported.
+- **Boundary:** Only current-JVM, current-coordinator deduplication is
+  guaranteed; there is no durable cross-restart command registry.
 
 ## Nonfunctional Requirements
 

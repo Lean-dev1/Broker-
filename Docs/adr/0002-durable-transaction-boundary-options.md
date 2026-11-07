@@ -51,3 +51,11 @@ idempotency with repeated commands.
 This ADR does not authorize a real broker integration, Kafka, microservices,
 financial custody, or production use. The trade posting journal introduced in
 ADR-0001 is **in-memory only** and is not yet a solution to issue #20.
+
+## Related incremental decision
+
+ADR-0005 defines in-process command IDs, conflict detection and immutable
+submission receipts. This is an **in-memory behavioral contract only**.
+A persistence design must commit the deduplication key and cached receipt
+atomically with order events and accounting postings; otherwise a restart
+could duplicate financial effects.

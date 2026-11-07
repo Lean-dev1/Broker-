@@ -12,6 +12,8 @@ simulated settlement, invariants and performance. **Not a production broker.**
 - Immutable, per-asset balanced **trade** postings recorded in memory.
 - Ordered in-memory audit records for external deposits/withdrawals and
   internal holds/releases; all balance writes go through Ledger.
+- Optional retry-safe order submission **within one coordinator/JVM** using
+  command IDs and immutable acceptance receipts.
 - Independent `LedgerAuditor.replay(journal)` and `ledger.reconcile()` to verify
   recorded postings reproduce current available/held balances.
 - Explicit order lifecycle and quantity conservation.
@@ -48,12 +50,15 @@ Account buyer = ledger.createAccount("buyer");
 ledger.deposit("seller", "ALUA", 10);
 ledger.deposit("buyer", "ARS", 1000);
 coordinator.submitOrder(new SellOrder(1, "seller", 100, 10), 1L);
-List<Trade> trades =
-    coordinator.submitOrder(new BuyOrder(2, "buyer", 100, 10), 2L, TimeInForce.FOK);
+SubmissionReceipt receipt = coordinator.submitOrderIdempotent(
+    new BuyOrder(2, "buyer", 100, 10), 2L, TimeInForce.FOK, "request-0002");
+List<Trade> trades = receipt.trades();
+// Reuse the same command ID and identical immutable request fields on retry;
+// the original receipt is returned without a second execution.
 ```
 
 `Order`, `TradingPair`, `TimeInForce`, `Trade`, `Account`,
-`Ledger`, `OrderBook`, `MatchingEngine` and `TradingCoordinator`
+`Ledger`, `OrderBook`, `MatchingEngine`, `SubmissionReceipt` and `TradingCoordinator`
 must be imported from their respective `main.domain`, `main.ledger` and
 `main.engine` packages.
 
@@ -73,9 +78,10 @@ directories via explicit Maven configuration.
 - [ADR 0002: Durable transaction options](Docs/adr/0002-durable-transaction-boundary-options.md)
 - [ADR 0003: Audit all balance movements](Docs/adr/0003-audit-all-balance-movements.md)
 - [ADR 0004: Independent ledger reconciliation](Docs/adr/0004-independent-ledger-reconciliation.md)
+- [ADR 0005: In-memory command idempotency](Docs/adr/0005-in-memory-command-idempotency.md)
 
 ## Open engineering problems
 
-Durable and idempotent transaction processing, double-entry accounting,
+Durable command idempotency across restarts, double-entry accounting,
 account and order isolation, failure recovery, instrument validation, authentication
 and external APIs. No benchmark claim should ignore snapshot costs.
