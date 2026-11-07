@@ -11,6 +11,8 @@ The implementation currently supports an **in-memory simulated market**, not liv
 - `PriceLevel`: FIFO queue of resting orders at one limit price.
 - `Trade`: immutable execution with order IDs, price, quantity, injected timestamp.
 - `Account`, `AssetBalance`: available and held balances in integer minor units.
+- `LedgerPosting`, `LedgerTransaction`: immutable in-memory signed postings
+  for executed trades, balanced per asset.
 
 ## Order states
 
@@ -41,7 +43,9 @@ after a successfully processed order, even if later canceled.
    quantities across accounts are unchanged by a completed trade.
 7. **Held-balance integrity:** accepted resting orders retain the required
    collateral; canceling their remainder releases it.
-8. **Failure rollback (single-writer, in-memory only):** a synchronous exception
+8. **Balanced trade postings:** each executed trade produces zero net asset
+   creation across all affected account buckets; journal entries are immutable.
+9. **Failure rollback (single-writer, in-memory only):** a synchronous exception
    in coordinator submission/cancellation restores the preceding book, order,
    ID registry, and account balances.
 
@@ -53,6 +57,10 @@ after a successfully processed order, even if later canceled.
   canceled without executions.
 
 ## Explicit limitations
+
+Trade postings are not yet a full general ledger: deposits, withdrawals,
+reserves and releases are not represented by journal entries. Instrument
+scales and complete account isolation remain open design problems.
 
 The in-memory snapshot is O(open orders + accounts × assets) for each mutation.
 It is not a durable journal or a crash-safe transaction. External mutation of

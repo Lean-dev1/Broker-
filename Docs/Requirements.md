@@ -42,6 +42,19 @@ All requirements below are for **simulation** only.
   original FIFO order and all affected account balances.
 - **AC-005.3:** A failed/rolled-back submission may retry with the same ID.
 
+### FR-006 — Balanced simulated trade postings
+- **AC-006.1:** Every completed `Trade` produces an immutable
+  `LedgerTransaction` with ordered postings.
+- **AC-006.2:** For each asset, the sum of the signed posting deltas is zero.
+- **AC-006.3:** Price improvement releases the buyer's unspent quote reserve.
+- **AC-006.4:** A failed command that previously generated trade postings
+  rolls back those entries and the sequence counter as well as all balances.
+- **AC-006.5:** Invalid/overflowing postings fail rather than silently
+  producing negative balances or wrapped integer values.
+- **Scope note:** Deposits, withdrawals, holds and cancellations are not yet
+  recorded in the immutable trade posting journal. Full double-entry
+  accounting and crash persistence are future work.
+
 ## Nonfunctional Requirements
 
 - **NFR-001 Determinism:** same initial state and input order yields the same

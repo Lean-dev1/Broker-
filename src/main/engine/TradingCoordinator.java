@@ -75,7 +75,7 @@ public final class TradingCoordinator {
 
             // The raw engine has GTC resting semantics; IOC is explicitly unlinked afterward.
             List<Trade> trades = matchingEngine.process(order, timestamp);
-            for (Trade trade : trades) settleTrade(order, aggressiveAccount, trade);
+            for (Trade trade : trades) settleTrade(order, trade);
 
             if (!order.isFilled()) {
                 if (policy == TimeInForce.GTC) {
@@ -120,17 +120,20 @@ public final class TradingCoordinator {
         }
     }
 
-    private void settleTrade(Order aggressiveOrder, Account aggressiveAccount, Trade trade) {
+    /**
+     * All executed transfers are booked as immutable, per-asset balanced postings.
+     * The outer coordinator checkpoint covers any failure during multi-trade settlement.
+     */
+    private void settleTrade(Order aggressiveOrder, Trade trade) {
         Order restingOrder = openOrdersIndex.get(trade.restingOrderId());
         if (restingOrder == null) {
-            throw new IllegalStateException("Resting order missing for settlement: " + trade.restingOrderId());
+            throw new IllegalStateException(
+                    "Resting order missing for settlement: " + trade.restingOrderId());
         }
-        Account restingAccount = ledger.getAccount(restingOrder.getParticipantId());
-        aggressiveOrder.settleExecution(aggressiveAccount, tradingPair,
-                                        trade.matchPrice(), trade.executedQuantity());
-        restingOrder.settleExecution(restingAccount, tradingPair,
-                                     trade.matchPrice(), trade.executedQuantity());
-        if (restingOrder.isFilled()) openOrdersIndex.remove(restingOrder.getId());
+        ledger.recordTrade(trade, aggressiveOrder, restingOrder, tradingPair);
+        if (restingOrder.isFilled()) {
+            openOrdersIndex.remove(restingOrder.getId());
+        }
     }
 
     private record Checkpoint(OrderBook.Snapshot book, Ledger.Snapshot ledger,

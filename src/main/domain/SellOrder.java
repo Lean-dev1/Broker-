@@ -33,15 +33,4 @@ public class SellOrder extends Order {
         }
     }
 
-    @Override
-    public void settleExecution(Account account, TradingPair pair, long executionPrice, long executedQuantity) {
-        if (executionPrice < getPrice()) {
-            throw new IllegalStateException("Invariant violation: SellOrder executed below limit price");
-        }
-
-        long quoteProceeds = Math.multiplyExact(executionPrice, executedQuantity);
-
-        // Consume the locked shares (Base Asset) and credit the cash proceeds (Quote Asset)
-        account.settle(pair.baseAsset(), executedQuantity, pair.quoteAsset(), quoteProceeds);
-    }
 }

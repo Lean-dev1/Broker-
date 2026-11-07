@@ -35,22 +35,4 @@ public class BuyOrder extends Order {
         }
     }
 
-    @Override
-    public void settleExecution(Account account, TradingPair pair, long executionPrice, long executedQuantity) {
-        if (executionPrice > getPrice()) {
-            throw new IllegalStateException("Invariant violation: BuyOrder executed above limit price");
-        }
-
-        long lockedQuoteAmount = Math.multiplyExact(getPrice(), executedQuantity);
-        long actualQuoteCost = Math.multiplyExact(executionPrice, executedQuantity);
-        long priceImprovementRefund = lockedQuoteAmount - actualQuoteCost;
-
-        // 1. Consume the actual cost from held quote currency and credit the purchased base asset
-        account.settle(pair.quoteAsset(), actualQuoteCost, pair.baseAsset(), executedQuantity);
-
-        // 2. If the buyer got a better price than their limit, immediately unlock the saved difference
-        if (priceImprovementRefund > 0) {
-            account.release(pair.quoteAsset(), priceImprovementRefund);
-        }
-    }
 }

@@ -5,7 +5,7 @@
 | R-001 | Partial settlement / book mutation on exceptions | Critical | Medium | In-memory snapshots + rollback regression tests | Mitigated for synchronous single-writer errors only |
 | R-002 | State loss on process crash or machine failure | Critical | High | Durable journal + recovery/replay design | OPEN |
 | R-003 | External or concurrent mutation of shared accounts/book | Critical | High | Encapsulation, single-writer command queue, concurrency tests | OPEN |
-| R-004 | Accounting errors and ambiguous integer asset scales | High | Medium | Specify tick size, lot size, amount scale; double-entry ledger | OPEN |
+| R-004 | Accounting errors and ambiguous integer asset scales | High | Medium | Specify tick size, lot size, amount scale; all balance movements need auditable postings | Partially mitigated for executed trades only |
 | R-005 | Arithmetic overflow | High | Medium | Math.addExact / multiplyExact and exception rollback | Partially mitigated |
 | R-006 | Order ID replay or non-idempotent external requests | High | Medium | Stable command IDs and persistent deduplication | OPEN |
 | R-007 | O(N) snapshots on every operation harming latency | High | High | Replace snapshots with validated execution plans + atomic commit | OPEN |
