@@ -6,8 +6,10 @@
 - `main.engine.MatchingEngine`: deterministic price-time matching (GTC-style).
 - `main.engine.TradingCoordinator`: order admission, simulated risk hold,
   matching, ledger settlement, cancellation, and time-in-force semantics.
-- `main.ledger`: in-memory account balances and immutable, per-asset balanced
-  postings for **executed trades only**. No durable accounting journal yet.
+- `main.ledger`: in-memory account balances and an ordered journal of
+  executed trades and explicit balance operations. Trades and holds/releases
+  have balanced postings; deposits/withdrawals are external flows.
+  No durable accounting journal yet.
 - `main.performance`: development JMH experiments.
 
 ## Single-process transaction mechanism
@@ -43,7 +45,8 @@ The old unused policy strategy types have been removed in favor of the
 
 ## Next architectural milestone
 
-ADR-0001 introduces inspectable trade postings without selecting persistence.
+ADRs 0001 and 0003 introduce an auditable in-memory journal for all balance
+movements without selecting persistence.
 ADR-0002 compares durable log approaches; storage technology is still undecided.
 
 Replace full-state snapshots with a properly isolated order-processing boundary,

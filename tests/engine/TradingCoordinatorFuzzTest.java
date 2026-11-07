@@ -37,8 +37,8 @@ class TradingCoordinatorFuzzTest {
         List<Account> accounts = new ArrayList<>(NUM_PARTICIPANTS);
         for (int i = 0; i < NUM_PARTICIPANTS; i++) {
             Account account = ledger.createAccount("Trader-" + i);
-            account.deposit(BASE_ASSET, INITIAL_BASE_PER_USER);
-            account.deposit(QUOTE_ASSET, INITIAL_QUOTE_PER_USER);
+            ledger.deposit(account.getParticipantId(), BASE_ASSET, INITIAL_BASE_PER_USER);
+            ledger.deposit(account.getParticipantId(), QUOTE_ASSET, INITIAL_QUOTE_PER_USER);
             accounts.add(account);
         }
 

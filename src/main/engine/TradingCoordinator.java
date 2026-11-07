@@ -7,7 +7,6 @@ import main.domain.SelfTradeException;
 import main.domain.TimeInForce;
 import main.domain.Trade;
 import main.domain.TradingPair;
-import main.ledger.Account;
 import main.ledger.Ledger;
 
 import java.util.HashMap;
@@ -48,6 +47,13 @@ public final class TradingCoordinator {
      * Reverts all in-memory state on a runtime failure (including failures mid-settlement).
      */
     public synchronized List<Trade> submitOrder(Order order, long timestamp, TimeInForce policy) {
+        synchronized (ledger) {
+            return submitOrderUnderLedgerLock(order, timestamp, policy);
+        }
+    }
+
+    /** Ledger and coordinator mutation cannot interleave with an external ledger command. */
+    private List<Trade> submitOrderUnderLedgerLock(Order order, long timestamp, TimeInForce policy) {
         Objects.requireNonNull(order, "order");
         Objects.requireNonNull(policy, "time in force");
         if (order.getStatus() != OrderStatus.CREATED) {
@@ -59,16 +65,16 @@ public final class TradingCoordinator {
         if (orderBook.wouldSelfMatch(order)) {
             throw new SelfTradeException("Self-trading is forbidden");
         }
-        Account aggressiveAccount = ledger.getAccount(order.getParticipantId());
+        ledger.getAccount(order.getParticipantId());
         Checkpoint checkpoint = checkpoint(order);
         try {
             // Hold first. If no funds, the transaction rolls back without consuming the ID.
-            order.reserveFunds(aggressiveAccount, tradingPair);
+            order.reserveFunds(ledger, tradingPair);
             submittedIds.add(order.getId());
 
             // FOK can cancel without mutating the book or executing any trades.
             if (policy == TimeInForce.FOK && !order.canBeCompletelyFilledBy(orderBook)) {
-                order.releaseRemainingFunds(aggressiveAccount, tradingPair);
+                order.releaseRemainingFunds(ledger, tradingPair);
                 order.cancelRemaining();
                 return List.of();
             }
@@ -88,7 +94,7 @@ public final class TradingCoordinator {
                     if (unlinked != order) {
                         throw new IllegalStateException("IOC/FOK remaining order not found");
                     }
-                    order.releaseRemainingFunds(aggressiveAccount, tradingPair);
+                    order.releaseRemainingFunds(ledger, tradingPair);
                     order.cancelRemaining();
                 }
             }
@@ -103,14 +109,20 @@ public final class TradingCoordinator {
     }
 
     public synchronized boolean cancelOrder(long orderId) {
+        synchronized (ledger) {
+            return cancelUnderLedgerLock(orderId);
+        }
+    }
+
+    private boolean cancelUnderLedgerLock(long orderId) {
         if (!openOrdersIndex.containsKey(orderId)) return false;
         Order order = openOrdersIndex.get(orderId);
-        Account account = ledger.getAccount(order.getParticipantId());
+        ledger.getAccount(order.getParticipantId());
         Checkpoint checkpoint = checkpoint(order);
         try {
             Order unlinked = orderBook.cancelOrder(orderId);
             if (unlinked != order) throw new IllegalStateException("Book and coordinator index differ");
-            order.releaseRemainingFunds(account, tradingPair);
+            order.releaseRemainingFunds(ledger, tradingPair);
             order.cancelRemaining();
             openOrdersIndex.remove(orderId);
             return true;

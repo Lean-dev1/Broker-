@@ -31,8 +31,8 @@ class LedgerPostingTest {
 
     @Test
     void postsBalancedTradeAndRefundsBuyerAtBetterPrice() {
-        seller.deposit("ALUA", 10L);
-        buyer.deposit("ARS", 1100L);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10L);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 1100L);
         coordinator.submitOrder(new SellOrder(1, "seller", 100, 10), 10);
         assertTrue(ledger.getTransactions().isEmpty());
 
@@ -40,7 +40,7 @@ class LedgerPostingTest {
 
         assertEquals(1, trades.size());
         LedgerTransaction tx = ledger.getTransactions().get(0);
-        assertEquals(1L, tx.sequence());
+        assertEquals(ledger.getJournal().size(), tx.sequence());
         assertEquals(trades.get(0), tx.trade());
         assertEquals(5, tx.postings().size());
 
@@ -67,8 +67,8 @@ class LedgerPostingTest {
 
     @Test
     void recordsTradeWhenSellerIsAggressiveAndBuyerIsResting() {
-        buyer.deposit("ARS", 1100);
-        seller.deposit("ALUA", 10);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 1100);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
         coordinator.submitOrder(new BuyOrder(1, "buyer", 110, 10), 10);
         List<Trade> trades = coordinator.submitOrder(new SellOrder(2, "seller", 100, 10), 11);
 
@@ -84,12 +84,12 @@ class LedgerPostingTest {
     @Test
     void rollbackDiscardsPostingForSuccessfulFirstLegWhenSecondLegFails() {
         Account secondSeller = ledger.createAccount("seller2");
-        seller.deposit("ALUA", 10);
-        secondSeller.deposit("ALUA", 5);
-        secondSeller.deposit("ARS", Long.MAX_VALUE - 5);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
+        ledger.deposit(secondSeller.getParticipantId(), "ALUA", 5);
+        ledger.deposit(secondSeller.getParticipantId(), "ARS", Long.MAX_VALUE - 5);
         coordinator.submitOrder(new SellOrder(1, "seller", 10, 10), 1);
         coordinator.submitOrder(new SellOrder(2, "seller2", 10, 5), 2);
-        buyer.deposit("ARS", 150);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 150);
         BuyOrder incoming = new BuyOrder(3, "buyer", 10, 15);
 
         assertThrows(ArithmeticException.class, () -> coordinator.submitOrder(incoming, 3));
@@ -100,17 +100,19 @@ class LedgerPostingTest {
         assertEquals(10, seller.getHeldBalance("ALUA"));
         assertEquals(5, secondSeller.getHeldBalance("ALUA"));
 
-        secondSeller.withdraw("ARS", Long.MAX_VALUE - 5);
+        ledger.withdraw(secondSeller.getParticipantId(), "ARS", Long.MAX_VALUE - 5);
         List<Trade> retry = coordinator.submitOrder(incoming, 4);
         assertEquals(2, retry.size());
         assertEquals(2, ledger.getTransactions().size());
-        assertEquals(1L, ledger.getTransactions().get(0).sequence());
-        assertEquals(2L, ledger.getTransactions().get(1).sequence());
+        long firstSequence = ledger.getTransactions().get(0).sequence();
+        long secondSequence = ledger.getTransactions().get(1).sequence();
+        assertEquals(firstSequence + 1L, secondSequence);
+        assertEquals(ledger.getJournal().size(), secondSequence);
     }
 
     @Test
     void cancellationWithoutExecutionDoesNotCreateTradePosting() {
-        seller.deposit("ALUA", 10);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
         SellOrder order = new SellOrder(1, "seller", 100, 10);
         coordinator.submitOrder(order, 1);
         assertTrue(coordinator.cancelOrder(1));

@@ -16,24 +16,8 @@ public class Account {
     }
 
     public String getParticipantId() { return participantId; }
-    public void deposit(String asset, long amount) { getOrCreateBalance(asset).creditAvailable(amount); }
-    public void withdraw(String asset, long amount) { getOrCreateBalance(asset).debitAvailable(amount); }
-    public void hold(String asset, long amount) { getOrCreateBalance(asset).hold(amount); }
-    public void release(String asset, long amount) { getOrCreateBalance(asset).release(amount); }
-
-    /** Legacy non-journaled settlement method. New trades use Ledger.recordTrade. */
-    @Deprecated
-    public void settle(String outgoingAsset, long outgoingHeld, String incomingAsset, long incomingAmount) {
-        if (outgoingAsset.equals(incomingAsset)) {
-            throw new IllegalArgumentException("Outgoing and incoming assets must differ");
-        }
-        AssetBalance outgoing = getOrCreateBalance(outgoingAsset);
-        AssetBalance incoming = getOrCreateBalance(incomingAsset);
-        outgoing.verifyCanSettleHeld(outgoingHeld);
-        incoming.verifyCanCredit(incomingAmount);
-        outgoing.settleHeld(outgoingHeld);
-        incoming.creditAvailable(incomingAmount);
-    }
+    // All balance changes must go through Ledger so they are auditable.
+    // Account exposes read-only balance queries to external packages.
 
     /** Package-private mutation entry point for balanced trade posting application. */
     void applyPosting(LedgerPosting posting) {

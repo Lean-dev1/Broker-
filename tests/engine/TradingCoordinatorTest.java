@@ -44,7 +44,7 @@ class TradingCoordinatorTest {
     @Test
     void shouldRejectOrderAndKeepBookCleanWhenFundsAreInsufficient() {
         // Arrange: Buyer only has 50,000 ARS, tries to buy 100 shares at 1,000 ARS (needs 100,000 ARS)
-        buyerAccount.deposit(QUOTE_ASSET, 50_000L);
+        ledger.deposit(buyerAccount.getParticipantId(), QUOTE_ASSET, 50_000L);
 
         BuyOrder invalidOrder = new BuyOrder(1L, "Buyer1", 1_000L, 100L);
 
@@ -63,7 +63,7 @@ class TradingCoordinatorTest {
     void shouldSettleExactMatchAndRefundBuyerPriceImprovement() {
         // Arrange:
         // Seller deposits 100 ALUA and offers them at 1,000 ARS each
-        sellerAccount.deposit(BASE_ASSET, 100L);
+        ledger.deposit(sellerAccount.getParticipantId(), BASE_ASSET, 100L);
         coordinator.submitOrder(new SellOrder(1L, "Seller1", 1_000L, 100L), ticker++);
 
         // Verify seller's shares are held in the book
@@ -72,7 +72,7 @@ class TradingCoordinatorTest {
 
         // Buyer deposits 110,000 ARS and sends an aggressive BuyOrder willing to pay up to 1,050 ARS
         // Required hold: 1,050 * 100 = 105,000 ARS
-        buyerAccount.deposit(QUOTE_ASSET, 110_000L);
+        ledger.deposit(buyerAccount.getParticipantId(), QUOTE_ASSET, 110_000L);
 
         // Act: Match executes at resting seller's price (1,000 ARS)
         List<Trade> trades = coordinator.submitOrder(new BuyOrder(2L, "Buyer1", 1_050L, 100L), ticker++);
@@ -96,11 +96,11 @@ class TradingCoordinatorTest {
     @Test
     void shouldHandlePartialFillAndReleaseRemainingHeldFundsOnCancel() {
         // Arrange: Seller puts 40 ALUA at 1,000 ARS
-        sellerAccount.deposit(BASE_ASSET, 40L);
+        ledger.deposit(sellerAccount.getParticipantId(), BASE_ASSET, 40L);
         coordinator.submitOrder(new SellOrder(1L, "Seller1", 1_000L, 40L), ticker++);
 
         // Buyer has 100,000 ARS and wants 100 ALUA at 1,000 ARS
-        buyerAccount.deposit(QUOTE_ASSET, 100_000L);
+        ledger.deposit(buyerAccount.getParticipantId(), QUOTE_ASSET, 100_000L);
 
         // Act 1: Partial execution of 40 shares (60 shares remain resting in the book)
         List<Trade> trades = coordinator.submitOrder(new BuyOrder(2L, "Buyer1", 1_000L, 100L), ticker++);

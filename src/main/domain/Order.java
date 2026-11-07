@@ -1,6 +1,6 @@
 package main.domain;
 
-import main.ledger.Account;
+import main.ledger.Ledger;
 import main.engine.MatchingEngine;
 
 import java.util.List;
@@ -84,6 +84,6 @@ public abstract class Order {
 
     public abstract OrderNode routeTo(OrderBook book);
     public abstract void processBy(MatchingEngine engine, List<Trade> executions, long timestamp);
-    public abstract void reserveFunds(Account account, TradingPair pair);
-    public abstract void releaseRemainingFunds(Account account, TradingPair pair);
+    public abstract void reserveFunds(Ledger ledger, TradingPair pair);
+    public abstract void releaseRemainingFunds(Ledger ledger, TradingPair pair);
 }

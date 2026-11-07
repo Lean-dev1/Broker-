@@ -32,7 +32,9 @@ Explicit Exclusions (Will not be implemented in Iteration 1):
 The repository includes experimental ledger/coordinator components in addition
 to the original Iteration 1 scope. `TradingCoordinator` currently supports
 GTC, IOC and FOK; standalone `MatchingEngine` retains GTC behavior.
-Executed trades now produce balanced, immutable in-memory postings.
+Executed trades and all balance movements (deposit, withdrawal, hold, release) now
+produce immutable, chronologically sequenced in-memory journal records.
+External deposits/withdrawals are explicit external flows, not balanced internal trades.
 This is **not** a full general ledger, persistent journal or production-ready
 implementation. Data durability, crash recovery and multi-process isolation
 remain out of scope for this iteration.

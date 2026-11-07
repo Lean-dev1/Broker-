@@ -55,6 +55,20 @@ All requirements below are for **simulation** only.
   recorded in the immutable trade posting journal. Full double-entry
   accounting and crash persistence are future work.
 
+### FR-007 — Audit all simulated balance movements
+- **AC-007.1:** Deposits and withdrawals are represented by immutable,
+  sequenced ledger operations explicitly marked as external flows.
+- **AC-007.2:** Holds and releases are balanced two-posting transfers
+  between available and held buckets.
+- **AC-007.3:** Deposits, withdrawals, holds, releases and trade
+  settlements share one chronological journal.
+- **AC-007.4:** Failed or invalid operations neither change balances
+  nor consume a journal sequence number.
+- **AC-007.5:** A rolled-back order restores balances, history and
+  sequence number, including provisional collateral holds.
+- **AC-007.6:** External callers cannot mutate Account balances
+  directly through its public API.
+
 ## Nonfunctional Requirements
 
 - **NFR-001 Determinism:** same initial state and input order yields the same

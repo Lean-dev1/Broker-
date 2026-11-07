@@ -63,3 +63,11 @@ per-command allocation. No claim of real-money suitability is made.
 Before closing issue #21, record ALL balance movements through the same
 controlled accounting boundary, constrain external mutation, and establish
 explicit per-instrument integer scales and accounting invariants.
+
+
+## Subsequent evolution
+
+ADR-0003 extends the **in-memory** journal to deposits, withdrawals,
+collateral holds and releases. The original non-goals above describe the
+state at the time ADR-0001 was accepted. Neither ADR supplies durable
+storage or complete external-clearing-account double entry.

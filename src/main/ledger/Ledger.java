@@ -19,10 +19,10 @@ import java.util.Objects;
  */
 public class Ledger {
     private final Map<String, Account> accounts = new HashMap<>();
-    private final List<LedgerTransaction> transactions = new ArrayList<>();
+    private final List<LedgerRecord> journal = new ArrayList<>();
     private long nextSequence = 1L;
 
-    public Account createAccount(String participantId) {
+    public synchronized Account createAccount(String participantId) {
         if (accounts.containsKey(participantId)) {
             throw new IllegalArgumentException("Account already exists for participant: " + participantId);
         }
@@ -31,21 +31,80 @@ public class Ledger {
         return account;
     }
 
-    public Account getAccount(String participantId) {
+    public synchronized Account getAccount(String participantId) {
         Account account = accounts.get(participantId);
         if (account == null) throw new IllegalArgumentException("Account not found: " + participantId);
         return account;
     }
 
-    /** Immutable snapshot of the journal; callers cannot change committed entries. */
-    public List<LedgerTransaction> getTransactions() { return List.copyOf(transactions); }
+    /** Immutable snapshot of the complete in-memory accounting journal. */
+    public synchronized List<LedgerRecord> getJournal() { return List.copyOf(journal); }
+
+    /** Compatibility query for executed trades only, in sequence order. */
+    public synchronized List<LedgerTransaction> getTransactions() {
+        List<LedgerTransaction> trades = new ArrayList<>();
+        for (LedgerRecord record : journal) {
+            if (record instanceof LedgerTransaction trade) trades.add(trade);
+        }
+        return List.copyOf(trades);
+    }
+
+    /** Explicit external inflow; not an internal zero-sum transfer. */
+    public synchronized LedgerOperation deposit(String participantId, String asset, long amount) {
+        return recordOperation(LedgerOperationType.DEPOSIT, participantId, asset, amount);
+    }
+
+    /** Explicit external outflow; not an internal zero-sum transfer. */
+    public synchronized LedgerOperation withdraw(String participantId, String asset, long amount) {
+        return recordOperation(LedgerOperationType.WITHDRAWAL, participantId, asset, amount);
+    }
+
+    /** Move available collateral to held, with zero net asset creation. */
+    public synchronized LedgerOperation hold(String participantId, String asset, long amount) {
+        return recordOperation(LedgerOperationType.HOLD, participantId, asset, amount);
+    }
+
+    /** Move held collateral back to available, with zero net asset creation. */
+    public synchronized LedgerOperation release(String participantId, String asset, long amount) {
+        return recordOperation(LedgerOperationType.RELEASE, participantId, asset, amount);
+    }
+
+    private LedgerOperation recordOperation(LedgerOperationType type, String participant,
+                                            String asset, long amount) {
+        Account account = getAccount(participant);
+        if (asset == null || asset.isBlank() || amount <= 0) {
+            throw new IllegalArgumentException("Valid asset and positive amount required");
+        }
+        long followingSequence = Math.addExact(nextSequence, 1L);
+        LedgerPosting available = new LedgerPosting(participant, asset,
+                BalanceBucket.AVAILABLE,
+                (type == LedgerOperationType.DEPOSIT || type == LedgerOperationType.RELEASE)
+                        ? amount : -amount);
+        List<LedgerPosting> postings;
+        if (type == LedgerOperationType.HOLD) {
+            postings = List.of(available,
+                    new LedgerPosting(participant, asset, BalanceBucket.HELD, amount));
+        } else if (type == LedgerOperationType.RELEASE) {
+            postings = List.of(
+                    new LedgerPosting(participant, asset, BalanceBucket.HELD, -amount),
+                    available);
+        } else {
+            postings = List.of(available);
+        }
+        LedgerOperation operation =
+                new LedgerOperation(nextSequence, type, participant, asset, amount, postings);
+        applyValidated(operation.postings());
+        journal.add(operation);
+        nextSequence = followingSequence;
+        return operation;
+    }
 
     /**
      * Apply a simulated trade with per-asset zero-sum postings.
      * Must be called from the single-writer coordinator, which rolls back if a later
      * trade in the same command fails.
      */
-    public LedgerTransaction recordTrade(Trade trade, Order aggressive, Order resting, TradingPair pair) {
+    public synchronized LedgerTransaction recordTrade(Trade trade, Order aggressive, Order resting, TradingPair pair) {
         Objects.requireNonNull(trade, "trade");
         Objects.requireNonNull(aggressive, "aggressive order");
         Objects.requireNonNull(resting, "resting order");
@@ -93,10 +152,21 @@ public class Ledger {
         LedgerTransaction transaction = new LedgerTransaction(nextSequence, trade, postings);
         long followingSequence = Math.addExact(nextSequence, 1L);
 
-        // Preflight all resulting balances before modifying any of them.
+        applyValidated(transaction.postings());
+        journal.add(transaction);
+        nextSequence = followingSequence;
+        return transaction;
+    }
+
+    /**
+     * Preflight all posting effects before the first mutation. Sequences and
+     * journal entries change only after the entire posting batch succeeds.
+     * The coordinator owns rollback if an unexpected runtime error occurs.
+     */
+    private void applyValidated(List<LedgerPosting> postings) {
         record BalanceKey(String participant, String asset, BalanceBucket bucket) {}
         Map<BalanceKey, Long> projected = new HashMap<>();
-        for (LedgerPosting posting : transaction.postings()) {
+        for (LedgerPosting posting : postings) {
             Account account = getAccount(posting.participantId());
             BalanceKey key = new BalanceKey(posting.participantId(),
                     posting.assetSymbol(), posting.bucket());
@@ -107,14 +177,26 @@ public class Ledger {
             if (after < 0) throw new InsufficientFundsException("Posting would make " + key + " negative");
             projected.put(key, after);
         }
-
-        // The coordinator owns the full rollback boundary for any unexpected failure.
-        for (LedgerPosting posting : transaction.postings()) {
+        // Even if both buckets individually fit in long, their sum must fit too.
+        // Validate each touched account/asset before committing any posting.
+        record AssetKey(String participant, String asset) {}
+        java.util.Set<AssetKey> affected = new java.util.HashSet<>();
+        for (LedgerPosting posting : postings) {
+            affected.add(new AssetKey(posting.participantId(), posting.assetSymbol()));
+        }
+        for (AssetKey asset : affected) {
+            Account account = getAccount(asset.participant());
+            long available = projected.getOrDefault(
+                    new BalanceKey(asset.participant(), asset.asset(), BalanceBucket.AVAILABLE),
+                    account.getAvailableBalance(asset.asset()));
+            long held = projected.getOrDefault(
+                    new BalanceKey(asset.participant(), asset.asset(), BalanceBucket.HELD),
+                    account.getHeldBalance(asset.asset()));
+            Math.addExact(available, held);
+        }
+        for (LedgerPosting posting : postings) {
             getAccount(posting.participantId()).applyPosting(posting);
         }
-        transactions.add(transaction);
-        nextSequence = followingSequence;
-        return transaction;
     }
 
     public static final class Snapshot {
@@ -130,20 +212,20 @@ public class Ledger {
         }
     }
 
-    public Snapshot snapshot() {
+    public synchronized Snapshot snapshot() {
         Map<Account, Account.Snapshot> states = new HashMap<>();
         for (Account account : accounts.values()) states.put(account, account.snapshotState());
-        return new Snapshot(states, transactions.size(), nextSequence);
+        return new Snapshot(states, journal.size(), nextSequence);
     }
 
     /** Restore balances AND remove uncommitted journal entries after a failed order. */
-    public void restore(Snapshot snapshot) {
+    public synchronized void restore(Snapshot snapshot) {
         snapshot.accounts.forEach(Account::restoreState);
-        if (transactions.size() < snapshot.journalSize) {
+        if (journal.size() < snapshot.journalSize) {
             throw new IllegalStateException("Journal shorter than checkpoint");
         }
-        while (transactions.size() > snapshot.journalSize) {
-            transactions.remove(transactions.size() - 1);
+        while (journal.size() > snapshot.journalSize) {
+            journal.remove(journal.size() - 1);
         }
         nextSequence = snapshot.nextSequence;
     }

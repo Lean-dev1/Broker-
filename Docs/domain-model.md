@@ -13,6 +13,8 @@ The implementation currently supports an **in-memory simulated market**, not liv
 - `Account`, `AssetBalance`: available and held balances in integer minor units.
 - `LedgerPosting`, `LedgerTransaction`: immutable in-memory signed postings
   for executed trades, balanced per asset.
+- `LedgerOperation`, `LedgerRecord`: explicit in-memory events for deposits,
+  withdrawals, holds and releases in the same chronological sequence.
 
 ## Order states
 
@@ -58,8 +60,9 @@ after a successfully processed order, even if later canceled.
 
 ## Explicit limitations
 
-Trade postings are not yet a full general ledger: deposits, withdrawals,
-reserves and releases are not represented by journal entries. Instrument
+The in-memory journal now records trade, deposit, withdrawal, hold and release.
+It is still not a complete production general ledger or a durable source of
+truth. External flows are not balanced against clearing accounts. Instrument
 scales and complete account isolation remain open design problems.
 
 The in-memory snapshot is O(open orders + accounts × assets) for each mutation.

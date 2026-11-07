@@ -8,6 +8,8 @@
 | Time-in-force | GTC, IOC, FOK through coordinator | Regression tests |
 | Quantity integrity | Positive fills, no overfills, quantity conservation | Invariant tests |
 | Financial conservation | Base/quote totals preserved by successful internal trades | Fuzz tests |
+| In-memory audit completeness | Each ledger deposit/withdraw/hold/release/trade produces ordered immutable entries | LedgerJournalTest |
+| Numeric safety | Available, held AND their combined total must fit in long | Overflow regression tests |
 | Synchronous failure atomicity | Snapshot/restore book, balances, IDs, orders | Mid-settlement overflow regression |
 | Crash durability/recovery | **NOT IMPLEMENTED** | Future write-ahead log/replay |
 | Concurrent access safety | **NOT PROVIDED** outside coordinator | Future single-writer architecture |

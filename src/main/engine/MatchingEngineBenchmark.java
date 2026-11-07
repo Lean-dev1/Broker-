@@ -48,11 +48,11 @@ public class MatchingEngineBenchmark {
         Account traderB = ledger.createAccount("TraderB");
 
         // Initial liquidity buffer for ping-pong trading
-        traderA.deposit(BASE_ASSET, 1_000_000L);
-        traderA.deposit(QUOTE_ASSET, 1_000_000_000L);
+        ledger.deposit(traderA.getParticipantId(), BASE_ASSET, 1_000_000L);
+        ledger.deposit(traderA.getParticipantId(), QUOTE_ASSET, 1_000_000_000L);
 
-        traderB.deposit(BASE_ASSET, 1_000_000L);
-        traderB.deposit(QUOTE_ASSET, 1_000_000_000L);
+        ledger.deposit(traderB.getParticipantId(), BASE_ASSET, 1_000_000L);
+        ledger.deposit(traderB.getParticipantId(), QUOTE_ASSET, 1_000_000_000L);
 
         ticker = 1L;
     }
