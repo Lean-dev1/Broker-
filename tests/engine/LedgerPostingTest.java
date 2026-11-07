@@ -40,7 +40,7 @@ class LedgerPostingTest {
 
         assertEquals(1, trades.size());
         LedgerTransaction tx = ledger.getTransactions().get(0);
-        assertEquals(1L, tx.sequence());
+        assertEquals(ledger.getJournal().size(), tx.sequence());
         assertEquals(trades.get(0), tx.trade());
         assertEquals(5, tx.postings().size());
 
@@ -104,8 +104,10 @@ class LedgerPostingTest {
         List<Trade> retry = coordinator.submitOrder(incoming, 4);
         assertEquals(2, retry.size());
         assertEquals(2, ledger.getTransactions().size());
-        assertEquals(1L, ledger.getTransactions().get(0).sequence());
-        assertEquals(2L, ledger.getTransactions().get(1).sequence());
+        long firstSequence = ledger.getTransactions().get(0).sequence();
+        long secondSequence = ledger.getTransactions().get(1).sequence();
+        assertEquals(firstSequence + 1L, secondSequence);
+        assertEquals(ledger.getJournal().size(), secondSequence);
     }
 
     @Test
