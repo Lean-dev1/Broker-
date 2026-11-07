@@ -86,6 +86,7 @@ directories via explicit Maven configuration.
 - [ADR 0003: Audit all balance movements](Docs/adr/0003-audit-all-balance-movements.md)
 - [ADR 0004: Independent ledger reconciliation](Docs/adr/0004-independent-ledger-reconciliation.md)
 - [ADR 0005: In-memory command idempotency](Docs/adr/0005-in-memory-command-idempotency.md)
+- [ADR 0006: Prospective source-available licensing](Docs/adr/0006-prospective-source-available-licensing.md)
 
 ## Open engineering problems
 
