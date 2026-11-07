@@ -51,9 +51,10 @@ All requirements below are for **simulation** only.
   rolls back those entries and the sequence counter as well as all balances.
 - **AC-006.5:** Invalid/overflowing postings fail rather than silently
   producing negative balances or wrapped integer values.
-- **Scope note:** Deposits, withdrawals, holds and cancellations are not yet
-  recorded in the immutable trade posting journal. Full double-entry
-  accounting and crash persistence are future work.
+- **Scope note:** Deposits, withdrawals, holds and releases are recorded
+  as separate immutable `LedgerOperation` entries in the unified in-memory
+  journal (FR-007). Full production double-entry accounting, external
+  clearing evidence and crash persistence remain future work.
 
 ### FR-007 — Audit all simulated balance movements
 - **AC-007.1:** Deposits and withdrawals are represented by immutable,

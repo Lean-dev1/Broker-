@@ -43,6 +43,8 @@ class IdempotentSubmissionTest {
         SubmissionReceipt retry = coordinator.submitOrderIdempotent(
                 new BuyOrder(1, "buyer", 100, 5), 10L, TimeInForce.GTC, "submit:1");
         assertSame(first, retry);
+        assertSame(first, coordinator.submitOrderIdempotent(
+                incoming, 10L, TimeInForce.GTC, "submit:1"));
         assertEquals(committed, ledger.getJournal());
         assertTrue(first.trades().isEmpty());
         assertEquals(OrderStatus.OPEN, first.statusAtAcceptance());
@@ -205,6 +207,25 @@ class IdempotentSubmissionTest {
                 coordinator.submitOrderIdempotent(new BuyOrder(1,"buyer",100,1),
                         1, TimeInForce.GTC,"valid:2"));
         assertEquals(2, ledger.getJournal().size());
+    }
+
+    @Test
+    void rejectsReceiptsWithInconsistentStatusOrExecutionHistory() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new SubmissionReceipt("x", 7, TimeInForce.GTC, 1,
+                        OrderStatus.FILLED, 10, 10, 0, 0, List.of()));
+        assertThrows(IllegalArgumentException.class, () ->
+                new SubmissionReceipt("x", 7, TimeInForce.GTC, 1,
+                        OrderStatus.OPEN, 10, 5, 5, 0,
+                        List.of(new Trade(7, 3, 100, 5, 1))));
+        assertThrows(IllegalArgumentException.class, () ->
+                new SubmissionReceipt("x", 7, TimeInForce.GTC, 1,
+                        OrderStatus.PARTIALLY_FILLED, 10, 5, 5, 0,
+                        List.of(new Trade(8, 3, 100, 5, 1))));
+        assertThrows(IllegalArgumentException.class, () ->
+                new SubmissionReceipt("x", 7, TimeInForce.GTC, 1,
+                        OrderStatus.PARTIALLY_FILLED, 10, 5, 5, 0,
+                        List.of(new Trade(7, 3, 100, 5, 2))));
     }
 
     @Test

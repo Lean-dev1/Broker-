@@ -38,5 +38,30 @@ public record SubmissionReceipt(
                         canceledQuantity) != initialQuantity) {
             throw new IllegalArgumentException("Invalid accepted order quantity conservation");
         }
+        long tradeQuantity = 0L;
+        for (Trade trade : trades) {
+            if (trade.aggressiveOrderId() != orderId
+                    || trade.timestamp() != timestamp
+                    || trade.executedQuantity() <= 0) {
+                throw new IllegalArgumentException("Receipt contains an unrelated trade");
+            }
+            tradeQuantity = Math.addExact(tradeQuantity, trade.executedQuantity());
+        }
+        if (tradeQuantity != executedQuantity) {
+            throw new IllegalArgumentException("Receipt executed quantity differs from trades");
+        }
+        boolean lifecycleConsistent = switch (statusAtAcceptance) {
+            case CREATED -> false;
+            case OPEN -> executedQuantity == 0 && canceledQuantity == 0
+                    && remainingQuantity > 0;
+            case PARTIALLY_FILLED -> executedQuantity > 0 && canceledQuantity == 0
+                    && remainingQuantity > 0;
+            case FILLED -> executedQuantity == initialQuantity
+                    && remainingQuantity == 0 && canceledQuantity == 0;
+            case CANCELED -> canceledQuantity > 0 && remainingQuantity == 0;
+        };
+        if (!lifecycleConsistent) {
+            throw new IllegalArgumentException("Receipt lifecycle and quantities disagree");
+        }
     }
 }
