@@ -1,5 +1,12 @@
 # Broker- — In-memory financial matching simulator
 
+> **Licensing:** Broker- is transitioning to a **proprietary source-available,
+> evaluation-only** model for future covered material. Public visibility is
+> intended for technical review, **not unrestricted use, deployment, or
+> redistribution**. See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+> Previous versions released under **MIT retain their original MIT rights**;
+> the transition does not retroactively withdraw those permissions.
+
 Experimental Java 17 project for studying price-time matching, order lifecycle,
 simulated settlement, invariants and performance. **Not a production broker.**
 

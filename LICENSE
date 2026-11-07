@@ -1,21 +1,89 @@
-MIT License
+Broker- SOURCE-AVAILABLE EVALUATION TERMS
+Version 1.0 — Proposed for future releases
 
-Copyright (c) 2026 Leandro Jerez
+Copyright (c) 2026 Leandro Jerez. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+IMPORTANT: THIS IS NOT AN OPEN-SOURCE LICENSE.
+IMPORTANT: EARLIER VERSIONS OF BROKER- WERE PUBLISHED UNDER THE MIT LICENSE.
+NOTHING IN THESE TERMS REVOKES, MODIFIES, OR RESTRICTS RIGHTS ALREADY GRANTED
+UNDER THAT LICENSE OR ANY OTHER VALID PRIOR LICENSE.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. SCOPE
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+These terms apply only to original, copyright-protectable Broker- material
+first made available by the copyright holder under these terms, to the extent
+the copyright holder has the legal right to license that material.
+
+Material previously released under the MIT License may continue to be used
+under the MIT License applicable to those earlier releases. Merely replacing
+this file does not make previously MIT-licensed material exclusive.
+
+Third-party material, including software dependencies, remains subject to
+its own license terms. These terms do not supersede any mandatory rights
+granted by law or applicable hosting-platform terms.
+
+2. LIMITED PERMISSION TO VIEW
+
+Anyone may access, read, and inspect Covered Material as displayed in this
+public GitHub repository solely to review its design, quality, architecture,
+and suitability for potential commercial licensing discussions.
+
+This limited permission does not grant a license to deploy, execute, build,
+test, adapt, incorporate, or otherwise use the Covered Material as software.
+
+Any viewing, display, or repository forking independently permitted by
+GitHub's Terms of Service remains subject to those terms. Such platform
+functionality does not confer additional off-platform software-use rights.
+
+3. RESTRICTIONS
+
+Except where a separate written agreement with the copyright holder, an
+applicable prior license, GitHub's Terms of Service, or mandatory law permits
+otherwise, no permission is granted to:
+
+(a) run, compile, execute, host, or deploy Covered Material;
+(b) modify, adapt, or prepare derivative works of Covered Material;
+(c) copy, redistribute, publish, sublicense, sell, or transfer Covered Material
+    outside the limited viewing and hosting-platform permissions described
+    above;
+(d) incorporate Covered Material into any product, library, service,
+    commercial system, or other codebase;
+(e) use Covered Material to provide a commercial or non-commercial service;
+(f) represent the Covered Material as independently authored or licensed
+    for unrestricted use.
+
+4. COMMERCIAL LICENSING
+
+Any use beyond the limited permissions above requires a separate, express,
+written agreement from the relevant copyright holder(s). Viewing the code,
+opening an issue, or discussing a potential license does not create such
+an agreement.
+
+5. CONTRIBUTIONS AND OWNERSHIP
+
+No assignment of intellectual-property rights is implied by these terms.
+Contributions from others may be subject to their own ownership and
+licensing requirements, and must be authorized before incorporation.
+
+All trademarks, service marks, and trade names are reserved to their
+respective owners.
+
+6. NO WARRANTY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, COVERED MATERIAL IS
+PROVIDED "AS IS", WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
+NONINFRINGEMENT. THE COPYRIGHT HOLDER IS NOT LIABLE FOR DAMAGES ARISING
+FROM USE OR INABILITY TO USE THE COVERED MATERIAL, TO THE EXTENT PERMITTED
+BY APPLICABLE LAW.
+
+7. LICENSING TRANSITION AND PRIOR RIGHTS
+
+These terms are prospective only. The prior MIT License and the rights
+granted for versions previously distributed under it remain in effect for
+those versions. The public Git history retains the prior license and commits.
+
+For an explanation of the transition, see LICENSING.md.
+
+This is a custom license text and should be reviewed by qualified legal
+counsel before being used as a definitive commercial licensing instrument.
