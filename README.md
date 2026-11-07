@@ -10,14 +10,16 @@ simulated settlement, invariants and performance. **Not a production broker.**
 - Deterministic trade timestamps injected by the caller.
 - Multi-asset in-memory accounts with held collateral.
 - Immutable, per-asset balanced **trade** postings recorded in memory.
+- Ordered in-memory audit records for external deposits/withdrawals and
+  internal holds/releases; all balance writes go through Ledger.
 - Explicit order lifecycle and quantity conservation.
 - Single-writer in-memory transaction rollback on synchronous failures.
 - JUnit regressions, seeded randomized tests and JMH microbenchmarks.
 
 **Important:** Rollback uses a full in-memory snapshot per command. This
 sacrifices throughput and memory for correctness in the current simulator.
-Trade postings do **not** include deposits, withdrawals, holds or releases yet;
-there is no complete double-entry ledger. There is no crash recovery,
+Trade postings and balance operations share a local in-memory journal;
+there is still no durable or complete production double-entry ledger. There is no crash recovery,
 persistent journal, security, durable audit trail, network
 access layer, or concurrency isolation from external mutations.
 
@@ -41,8 +43,8 @@ TradingCoordinator coordinator =
 
 Account seller = ledger.createAccount("seller");
 Account buyer = ledger.createAccount("buyer");
-seller.deposit("ALUA", 10);
-buyer.deposit("ARS", 1000);
+ledger.deposit("seller", "ALUA", 10);
+ledger.deposit("buyer", "ARS", 1000);
 coordinator.submitOrder(new SellOrder(1, "seller", 100, 10), 1L);
 List<Trade> trades =
     coordinator.submitOrder(new BuyOrder(2, "buyer", 100, 10), 2L, TimeInForce.FOK);
@@ -67,6 +69,7 @@ directories via explicit Maven configuration.
 - [Risk register](Docs/risk-register.md)
 - [ADR 0001: Balanced trade postings](Docs/adr/0001-balanced-trade-postings.md)
 - [ADR 0002: Durable transaction options](Docs/adr/0002-durable-transaction-boundary-options.md)
+- [ADR 0003: Audit all balance movements](Docs/adr/0003-audit-all-balance-movements.md)
 
 ## Open engineering problems
 

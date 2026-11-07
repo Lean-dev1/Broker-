@@ -31,11 +31,11 @@ class TradingCoordinatorTransactionTest {
 
     @Test
     void rollbackRestoresBookAccountsOrderAndIdAfterSettlementFailure() {
-        seller.deposit("ALUA", 10);
-        seller.deposit("ARS", Long.MAX_VALUE - 10);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
+        ledger.deposit(seller.getParticipantId(), "ARS", Long.MAX_VALUE - 10);
         SellOrder ask = new SellOrder(1, "seller", 10, 10);
         coordinator.submitOrder(ask, 1);
-        buyer.deposit("ARS", 1000);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 1000);
         BuyOrder bid = new BuyOrder(2, "buyer", 10, 10);
 
         assertThrows(ArithmeticException.class, () -> coordinator.submitOrder(bid, 2));
@@ -53,7 +53,7 @@ class TradingCoordinatorTransactionTest {
         assertEquals(10, ask.getRemainingQuantity());
 
         // A rejected/rolled-back ID is reusable because it never committed.
-        seller.withdraw("ARS", Long.MAX_VALUE - 10);
+        ledger.withdraw(seller.getParticipantId(), "ARS", Long.MAX_VALUE - 10);
         List<Trade> accepted = coordinator.submitOrder(bid, 3);
         assertEquals(1, accepted.size());
         assertTrue(bid.isFilled());
@@ -63,15 +63,15 @@ class TradingCoordinatorTransactionTest {
     @Test
     void rollbackAfterFirstSuccessfulTradeRestoresBothRestingOrdersAndFifo() {
         Account secondSeller = ledger.createAccount("seller2");
-        seller.deposit("ALUA", 10);
-        secondSeller.deposit("ALUA", 5);
-        secondSeller.deposit("ARS", Long.MAX_VALUE - 5);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
+        ledger.deposit(secondSeller.getParticipantId(), "ALUA", 5);
+        ledger.deposit(secondSeller.getParticipantId(), "ARS", Long.MAX_VALUE - 5);
         SellOrder first = new SellOrder(1, "seller", 10, 10);
         SellOrder second = new SellOrder(2, "seller2", 10, 5);
         coordinator.submitOrder(first, 1);
         coordinator.submitOrder(second, 2);
 
-        buyer.deposit("ARS", 150);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 150);
         BuyOrder incoming = new BuyOrder(3, "buyer", 10, 15);
         assertThrows(ArithmeticException.class, () -> coordinator.submitOrder(incoming, 3));
         assertEquals(OrderStatus.CREATED, incoming.getStatus());
@@ -84,7 +84,7 @@ class TradingCoordinatorTransactionTest {
         assertSame(first, book.getBestAskLevel().getHead().getOrder());
         assertSame(second, book.getBestAskLevel().getHead().getNext().getOrder());
 
-        secondSeller.withdraw("ARS", Long.MAX_VALUE - 5);
+        ledger.withdraw(secondSeller.getParticipantId(), "ARS", Long.MAX_VALUE - 5);
         List<Trade> trades = coordinator.submitOrder(incoming, 4);
         assertEquals(2, trades.size());
         assertEquals(1L, trades.get(0).restingOrderId());
@@ -95,9 +95,9 @@ class TradingCoordinatorTransactionTest {
 
     @Test
     void iocExecutesAvailableAndCancelsRemainingWithFundsReleased() {
-        seller.deposit("ALUA", 40);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 40);
         coordinator.submitOrder(new SellOrder(1, "seller", 100, 40), 1);
-        buyer.deposit("ARS", 10_000);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 10_000);
         BuyOrder order = new BuyOrder(2, "buyer", 100, 100);
 
         List<Trade> trades = coordinator.submitOrder(order, 2, TimeInForce.IOC);
@@ -117,10 +117,10 @@ class TradingCoordinatorTransactionTest {
 
     @Test
     void fokWithoutEnoughLiquidityCancelsWithoutTouchingBook() {
-        seller.deposit("ALUA", 40);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 40);
         SellOrder existing = new SellOrder(1, "seller", 100, 40);
         coordinator.submitOrder(existing, 1);
-        buyer.deposit("ARS", 10_000);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 10_000);
         BuyOrder order = new BuyOrder(2, "buyer", 100, 100);
 
         List<Trade> trades = coordinator.submitOrder(order, 2, TimeInForce.FOK);
@@ -138,11 +138,11 @@ class TradingCoordinatorTransactionTest {
     @Test
     void fokWithMultipleLevelsFillsEntireOrderAtRestingPrices() {
         Account seller2 = ledger.createAccount("seller2");
-        seller.deposit("ALUA", 50);
-        seller2.deposit("ALUA", 50);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 50);
+        ledger.deposit(seller2.getParticipantId(), "ALUA", 50);
         coordinator.submitOrder(new SellOrder(1, "seller", 100, 50), 1);
         coordinator.submitOrder(new SellOrder(2, "seller2", 105, 50), 2);
-        buyer.deposit("ARS", 11_000);
+        ledger.deposit(buyer.getParticipantId(), "ARS", 11_000);
         BuyOrder order = new BuyOrder(3, "buyer", 110, 100);
 
         List<Trade> trades = coordinator.submitOrder(order, 3, TimeInForce.FOK);
@@ -162,7 +162,7 @@ class TradingCoordinatorTransactionTest {
 
     @Test
     void canceledOrderCannotBeSubmittedAgainWithSameId() {
-        seller.deposit("ALUA", 10);
+        ledger.deposit(seller.getParticipantId(), "ALUA", 10);
         SellOrder order = new SellOrder(1, "seller", 100, 10);
         coordinator.submitOrder(order, 1);
         assertEquals(OrderStatus.OPEN, order.getStatus());

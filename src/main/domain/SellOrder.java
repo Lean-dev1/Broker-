@@ -1,7 +1,7 @@
 package main.domain;
 
 import main.engine.MatchingEngine;
-import main.ledger.Account;
+import main.ledger.Ledger;
 import java.util.List;
 
 public class SellOrder extends Order {
@@ -21,15 +21,15 @@ public class SellOrder extends Order {
     }
 
     @Override
-    public void reserveFunds(Account account, TradingPair pair) {
+    public void reserveFunds(Ledger ledger, TradingPair pair) {
         // Seller locks Base Asset (e.g., ALUA shares): only the quantity matters
-        account.hold(pair.baseAsset(), getInitialQuantity());
+        ledger.hold(getParticipantId(), pair.baseAsset(), getInitialQuantity());
     }
 
     @Override
-    public void releaseRemainingFunds(Account account, TradingPair pair) {
+    public void releaseRemainingFunds(Ledger ledger, TradingPair pair) {
         if (getRemainingQuantity() > 0) {
-            account.release(pair.baseAsset(), getRemainingQuantity());
+            ledger.release(getParticipantId(), pair.baseAsset(), getRemainingQuantity());
         }
     }
 

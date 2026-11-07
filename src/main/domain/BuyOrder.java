@@ -1,7 +1,7 @@
 package main.domain;
 
 import main.engine.MatchingEngine;
-import main.ledger.Account;
+import main.ledger.Ledger;
 import java.util.List;
 
 public class BuyOrder extends Order {
@@ -21,17 +21,17 @@ public class BuyOrder extends Order {
     }
 
     @Override
-    public void reserveFunds(Account account, TradingPair pair) {
+    public void reserveFunds(Ledger ledger, TradingPair pair) {
         // Buyer locks Quote Asset (e.g., ARS): limitPrice * initialQuantity
         long totalQuoteToLock = Math.multiplyExact(getPrice(), getInitialQuantity());
-        account.hold(pair.quoteAsset(), totalQuoteToLock);
+        ledger.hold(getParticipantId(), pair.quoteAsset(), totalQuoteToLock);
     }
 
     @Override
-    public void releaseRemainingFunds(Account account, TradingPair pair) {
+    public void releaseRemainingFunds(Ledger ledger, TradingPair pair) {
         if (getRemainingQuantity() > 0) {
             long quoteToRelease = Math.multiplyExact(getPrice(), getRemainingQuantity());
-            account.release(pair.quoteAsset(), quoteToRelease);
+            ledger.release(getParticipantId(), pair.quoteAsset(), quoteToRelease);
         }
     }
 

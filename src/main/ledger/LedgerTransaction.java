@@ -10,7 +10,8 @@ import java.util.Objects;
  * Immutable *in-memory* record of the balanced postings for one simulated trade.
  * Sequence numbers are local to one Ledger instance; they are not durable IDs.
  */
-public record LedgerTransaction(long sequence, Trade trade, List<LedgerPosting> postings) {
+public record LedgerTransaction(long sequence, Trade trade, List<LedgerPosting> postings)
+        implements LedgerRecord {
     public LedgerTransaction {
         if (sequence <= 0) throw new IllegalArgumentException("Sequence must be positive");
         Objects.requireNonNull(trade, "trade");
