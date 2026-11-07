@@ -40,6 +40,14 @@ public class Account {
         return balance == null ? 0L : balance.getTotal();
     }
 
+    /** A detached, immutable balance view for reconciliation. Package-private. */
+    Map<String, LedgerBalanceView> balanceViews() {
+        Map<String, LedgerBalanceView> view = new HashMap<>();
+        balances.forEach((asset, amount) ->
+                view.put(asset, new LedgerBalanceView(amount.getAvailable(), amount.getHeld())));
+        return Map.copyOf(view);
+    }
+
     static final class Snapshot {
         private final Map<String, AssetBalance.State> balances;
         private Snapshot(Map<String, AssetBalance.State> balances) { this.balances = balances; }

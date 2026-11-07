@@ -110,6 +110,9 @@ class TradingCoordinatorFuzzTest {
                 "Collateral leak detected in QUOTE_ASSET for " + account.getParticipantId());
         }
 
+        // Independent posting replay must reproduce all live balances as well.
+        ledger.reconcile();
+
         // 3. The OrderBook must be completely empty
         assertNull(book.getBestBid(), "OrderBook Bids should be empty after EOD cancellation");
         assertNull(book.getBestAsk(), "OrderBook Asks should be empty after EOD cancellation");

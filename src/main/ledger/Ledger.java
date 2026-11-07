@@ -37,6 +37,33 @@ public class Ledger {
         return account;
     }
 
+    /**
+     * Reconstruct all recorded balances independently from the journal and
+     * compare them with the current in-memory account state.
+     * This is O(journal records + account positions), not a hot-path check.
+     */
+    public synchronized LedgerAuditReport reconcile() {
+        LedgerAuditReport report = LedgerAuditor.replay(List.copyOf(journal));
+        Map<AccountAssetKey, LedgerBalanceView> live = new HashMap<>();
+        for (Account account : accounts.values()) {
+            account.balanceViews().forEach((asset, balance) ->
+                    live.put(new AccountAssetKey(account.getParticipantId(), asset), balance));
+        }
+        java.util.Set<AccountAssetKey> keys = new java.util.HashSet<>(live.keySet());
+        keys.addAll(report.balances().keySet());
+        for (AccountAssetKey key : keys) {
+            LedgerBalanceView observed = live.getOrDefault(key, LedgerBalanceView.ZERO);
+            LedgerBalanceView expected = report.balances().getOrDefault(
+                    key, LedgerBalanceView.ZERO);
+            if (!observed.equals(expected)) {
+                throw new IllegalStateException(
+                        "Ledger reconciliation mismatch for " + key
+                        + ": expected " + expected + ", actual " + observed);
+            }
+        }
+        return report;
+    }
+
     /** Immutable snapshot of the complete in-memory accounting journal. */
     public synchronized List<LedgerRecord> getJournal() { return List.copyOf(journal); }
 

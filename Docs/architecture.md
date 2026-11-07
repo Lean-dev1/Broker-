@@ -9,7 +9,8 @@
 - `main.ledger`: in-memory account balances and an ordered journal of
   executed trades and explicit balance operations. Trades and holds/releases
   have balanced postings; deposits/withdrawals are external flows.
-  No durable accounting journal yet.
+  A separate read-only auditor can independently reconstruct balances from
+  that journal and compare them with live accounts. No durable storage yet.
 - `main.performance`: development JMH experiments.
 
 ## Single-process transaction mechanism
