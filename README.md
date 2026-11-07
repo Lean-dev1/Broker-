@@ -1,5 +1,12 @@
 # Broker- — In-memory financial matching simulator
 
+> **Licensing:** Broker- is transitioning to a **proprietary source-available,
+> evaluation-only** model for future covered material. Public visibility is
+> intended for technical review, **not unrestricted use, deployment, or
+> redistribution**. See [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md).
+> Previous versions released under **MIT retain their original MIT rights**;
+> the transition does not retroactively withdraw those permissions.
+
 Experimental Java 17 project for studying price-time matching, order lifecycle,
 simulated settlement, invariants and performance. **Not a production broker.**
 
@@ -79,6 +86,7 @@ directories via explicit Maven configuration.
 - [ADR 0003: Audit all balance movements](Docs/adr/0003-audit-all-balance-movements.md)
 - [ADR 0004: Independent ledger reconciliation](Docs/adr/0004-independent-ledger-reconciliation.md)
 - [ADR 0005: In-memory command idempotency](Docs/adr/0005-in-memory-command-idempotency.md)
+- [ADR 0006: Prospective source-available licensing](Docs/adr/0006-prospective-source-available-licensing.md)
 
 ## Open engineering problems
 
